@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>개인 시간표 조회 시스템</title>
+  <!-- SheetJS 라이브러리 -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+    body { margin: 0; padding: 20px; background-color: #f1f5f9; color: #334155; }
+    .container { max-width: 850px; margin: 0 auto; background: #ffffff; padding: 30px; border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05); }
+    h1, h2 { text-align: center; color: #0f172a; margin-top: 0; }
+    
+    .tab-buttons { display: flex; gap: 10px; margin-bottom: 25px; border-bottom: 2px solid #e2e8f0; }
+    .tab-btn { flex: 1; padding: 14px; border: none; background: none; font-size: 16px; font-weight: bold; cursor: pointer; color: #64748b; border-bottom: 3px solid transparent; transition: all 0.2s; }
+    .tab-btn.active { color: #2563eb; border-bottom-color: #2563eb; }
+    
+    .section { display: none; }
+    .section.active { display: block; }
+    
+    .drop-zone { border: 2px dashed #93c5fd; padding: 40px; text-align: center; border-radius: 12px; background: #eff6ff; cursor: pointer; transition: 0.2s; font-weight: 500; color: #1e40af; }
+    .drop-zone:hover, .drop-zone.dragover { background: #dbeafe; border-color: #2563eb; }
+    
+    .btn { background: #2563eb; color: #fff; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-size: 15px; font-weight: bold; transition: 0.2s; }
+    .btn:hover { background: #1d4ed8; }
+    .btn-success { background: #10b981; }
+    .btn-success:hover { background: #059669; }
+    
+    .card { background: #f8fafc; padding: 20px; border-radius: 10px; border: 1px solid #e2e8f0; margin-bottom: 20px; }
+    .search-box { display: flex; gap: 10px; justify-content: center; margin-bottom: 20px; flex-wrap: wrap; }
+    .search-box input { padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 15px; outline: none; width: 180px; }
+    .search-box input:focus { border-color: #2563eb; }
+    
+    table.timetable { width: 100%; border-collapse: collapse; margin-top: 15px; text-align: center; background: #fff; border-radius: 8px; overflow: hidden; }
+    table.timetable th, table.timetable td { border: 1px solid #e2e8f0; padding: 12px 8px; font-size: 14px; }
+    table.timetable th { background: #f1f5f9; color: #475569; font-weight: 600; }
+    .cell-subject { font-weight: bold; color: #0f172a; font-size: 15px; }
+    .cell-info { font-size: 12px; color: #64748b; margin-top: 4px; }
+    
+    .status-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: 600; margin-top: 10px; }
+    .status-ok { background: #d1fae5; color: #065f46; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div class="tab-buttons">
+    <button class="tab-btn active" onclick="switchTab('user')">📅 시간표 조회</button>
+    <button class="tab-btn" onclick="switchTab('admin')">⚙️ 관리자 설정</button>
+  </div>
+
+  <!-- 1. 시간표 조회 (학생/교사) -->
+  <div id="userSection" class="section active">
+    <h2>개인 시간표 조회</h2>
+    <div class="search-box">
+      <input type="text" id="searchStudentId" placeholder="학번 (예: 20101)">
+      <input type="text" id="searchName" placeholder="이름 (예: 홍길동)">
+      <input type="password" id="searchPassword" placeholder="비밀번호 4자리" style="display:none;">
+      <button class="btn" onclick="searchTimetable()">조회하기</button>
+    </div>
+
+    <div id="studentInfo" style="text-align:center; font-weight:bold; margin-bottom: 15px; font-size: 18px; color: #1e293b;"></div>
+
+    <table class="timetable" id="timetableGrid">
+      <thead>
+        <tr>
+          <th style="width: 10%;">교시</th>
+          <th>월</th>
+          <th>화</th>
+          <th>수</th>
+          <th>목</th>
+          <th>금</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td colspan="6">학번과 이름을 입력하고 조회 버튼을 눌러주세요.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 2. 관리자 설정 -->
+  <div id="adminSection" class="section">
+    <h2>관리자 설정</h2>
+    
+    <div class="card">
+      <h3>1. 양식 다운로드 및 기초자료 업로드</h3>
+      <p style="font-size: 14px; color: #64748b;">제공된 원본 엑셀 양식을 작성한 후 등록해주세요.</p>
+      <button class="btn" onclick="downloadOriginalTemplate()">📥 기초자료[양식].xlsx 다운로드</button>
+      <br><br>
+      <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+        📁 이곳에 작성한 엑셀 파일(.xlsx)을 클릭하여 등록하거나 드래그하세요.
+        <input type="file" id="fileInput" accept=".xlsx" style="display:none" onchange="handleFileUpload(this.files[0])">
+      </div>
+      <div id="uploadStatus"></div>
+    </div>
+
+    <div class="card">
+      <h3>2. 보안 및 비밀번호 설정</h3>
+      <label style="font-size: 15px; cursor: pointer; font-weight: 600;">
+        <input type="checkbox" id="usePasswordCheck" onchange="togglePasswordSetting()" style="width: 18px; height: 18px;"> 학생별 랜덤 4자리 비밀번호 사용하기
+      </label>
+      <br><br>
+      <button id="btnDownloadPwd" class="btn btn-success" style="display:none;" onclick="downloadPasswordList()">🔑 학생 비밀번호 목록 다운로드 (XLSX)</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let DB = {
+    students: [],
+    teachers: {},
+    timetable: {},
+    usePassword: false
+  };
+
+  // 페이지 로드 시 로컬 저장소 데이터 불러오기
+  window.onload = function() {
+    const savedData = localStorage.getItem('school_timetable_db');
+    if (savedData) {
+      DB = JSON.parse(savedData);
+      document.getElementById('usePasswordCheck').checked = DB.usePassword || false;
+      updatePasswordUI();
+    }
+  };
+
+  function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
+    if (tab === 'admin') {
+      document.querySelectorAll('.tab-btn')[1].classList.add('active');
+      document.getElementById('adminSection').classList.add('active');
+    } else {
+      document.querySelectorAll('.tab-btn')[0].classList.add('active');
+      document.getElementById('userSection').classList.add('active');
+    }
+  }
+
+  // 첨부해 주신 원본 엑셀 양식 다운로드
+  function downloadOriginalTemplate() {
+    const wb = XLSX.utils.book_new();
+    
+    // 학생 선택과목 현황 Sheet
+    const ws1Data = [
+      ["연번", "학번", "이름", "A", "B", "C", "D", "E"],
+      [1, 20101, "강민준", "동아시아 역사기행", "도시의 미래탐구", "음악과 미디어", "법과사회", "일본어회화"],
+      [2, 20102, "김서준", "세계시민과 지리", "생활속의 화학", "음악과 미디어", "법과사회", "중국어회화"]
+    ];
+    for(let i=3; i<=365; i++) ws1Data.push([i, "", "", "", "", "", "", ""]);
+    
+    // 담당교사 및 강의실 Sheet
+    const ws2Data = [
+      ["군", "과목명", "교사", "강의실"],
+      ["A", "동아시아 역사기행", "김철수", "201"],
+      ["A", "세계시민과 지리", "이영희", "202"],
+      ["B", "도시의 미래탐구", "박민수", "203"],
+      ["B", "생활속의 화학", "최지은", "과학실1"],
+      ["C", "음악과 미디어", "정경호", "음악실"],
+      ["D", "법과사회", "한소희", "204"],
+      ["E", "일본어회화", "Sato", "어학실1"]
+    ];
+    for(let j=ws2Data.length; j<=62; j++) ws2Data.push(["", "", "", ""]);
+
+    // 전체시간표 Sheet
+    const ws3Data = [
+      ["전체시간표"],
+      ["학급", "월", "", "", "", "", "", "", "화", "", "", "", "", "", "", "수", "", "", "", "", "", "", "목", "", "", "", "", "", "", "금"],
+      ["", 1, 2, 3, 4, 5, 6, 7, 1, 2, 3, 4, 5, 6, 7, 1, 2, 3, 4, 5, 6, 7, 1, 2, 3, 4, 5, 6, 7, 1, 2, 3, 4, 5, 6, 7]
+    ];
+    for(let c=1; c<=15; c++) {
+      ws3Data.push([c, "A", "B", "C", "D", "E", "", "", "B", "C", "D", "E", "A", "", "", "C", "D", "E", "A", "B", "", "", "D", "E", "A", "B", "C", "", "", "E", "A", "B", "C", "D", "", ""]);
+    }
+
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ws1Data), "학생 선택과목 현황");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ws2Data), "담당교사 및 강의실");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ws3Data), "전체시간표");
+
+    XLSX.writeFile(wb, "개인 시간표 기초자료[양식].xlsx");
+  }
+
+  // 엑셀 업로드 파싱
+  function handleFileUpload(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const wb = XLSX.read(data, {type: 'array'});
+        
+        // 1. 학생 데이터
+        const sSheet = wb.Sheets['학생 선택과목 현황'] || wb.Sheets[wb.SheetNames[0]];
+        const sRows = XLSX.utils.sheet_to_json(sSheet, {header: 1});
+        DB.students = [];
+        for (let i = 1; i < sRows.length; i++) {
+          const row = sRows[i];
+          if (row && row[1] && row[2]) {
+            DB.students.push({
+              id: String(row[1]).trim(),
+              name: String(row[2]).trim(),
+              choices: { 'A': row[3]||'', 'B': row[4]||'', 'C': row[5]||'', 'D': row[6]||'', 'E': row[7]||'' },
+              pwd: Math.floor(1000 + Math.random() * 9000).toString()
+            });
+          }
+        }
+
+        // 2. 담당교사 데이터
+        const tSheet = wb.Sheets['담당교사 및 강의실'] || wb.Sheets[wb.SheetNames[1]];
+        const tRows = XLSX.utils.sheet_to_json(tSheet, {header: 1});
+        DB.teachers = {};
+        for (let j = 1; j < tRows.length; j++) {
+          const row = tRows[j];
+          if (row && row[0] && row[1]) {
+            const key = String(row[0]).trim() + "_" + String(row[1]).trim();
+            DB.teachers[key] = { teacher: row[2] || '-', room: row[3] || '-' };
+          }
+        }
+
+        // 3. 시간표 데이터
+        const ttSheet = wb.Sheets['전체시간표'] || wb.Sheets[wb.SheetNames[2]];
+        const ttRows = XLSX.utils.sheet_to_json(ttSheet, {header: 1});
+        DB.timetable = {};
+        if (ttRows.length > 3) {
+          for (let r = 3; r < ttRows.length; r++) {
+            const row = ttRows[r];
+            if (row && row[0]) {
+              const classNum = parseInt(row[0], 10);
+              DB.timetable[classNum] = row.slice(1);
+            }
+          }
+        }
+
+        saveDB();
+        document.getElementById('uploadStatus').innerHTML = `<div class="status-badge status-ok">✅ 총 ${DB.students.length}명의 학생 기초자료가 등록되었습니다!</div>`;
+        alert("기초 자료가 성공적으로 저장되었습니다!");
+      } catch (err) {
+        alert("엑셀 파일 읽기 실패: " + err);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function saveDB() {
+    localStorage.setItem('school_timetable_db', JSON.stringify(DB));
+  }
+
+  function togglePasswordSetting() {
+    DB.usePassword = document.getElementById('usePasswordCheck').checked;
+    saveDB();
+    updatePasswordUI();
+  }
+
+  function updatePasswordUI() {
+    const pwdInput = document.getElementById('searchPassword');
+    const pwdBtn = document.getElementById('btnDownloadPwd');
+    if (DB.usePassword) {
+      pwdInput.style.display = 'inline-block';
+      pwdBtn.style.display = 'inline-block';
+    } else {
+      pwdInput.style.display = 'none';
+      pwdBtn.style.display = 'none';
+    }
+  }
+
+  function downloadPasswordList() {
+    if (!DB.students.length) return alert("등록된 학생 데이터가 없습니다.");
+    const data = [["학번", "이름", "비밀번호"], ...DB.students.map(s => [s.id, s.name, s.pwd])];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(data), "비밀번호");
+    XLSX.writeFile(wb, "학생_비밀번호_목록.xlsx");
+  }
+
+  // 시간표 조회 기능
+  function searchTimetable() {
+    const id = String(document.getElementById('searchStudentId').value).trim();
+    const name = String(document.getElementById('searchName').value).trim();
+    const pwd = String(document.getElementById('searchPassword').value).trim();
+
+    if (!id || !name) return alert("학번과 이름을 입력해주세요.");
+
+    const student = DB.students.find(s => s.id === id && s.name === name);
+    if (!student) return alert("일치하는 학생 정보를 찾을 수 없습니다.");
+
+    if (DB.usePassword && student.pwd !== pwd) {
+      return alert("비밀번호가 일치하지 않습니다.");
+    }
+
+    document.getElementById('studentInfo').innerText = `${student.id} ${student.name} 학생 개인 시간표`;
+
+    const classNum = parseInt(student.id.substring(2, 4), 10);
+    const classSchedule = DB.timetable[classNum] || [];
+
+    const days = ['월', '화', '수', '목', '금'];
+    const tbody = document.querySelector('#timetableGrid tbody');
+    tbody.innerHTML = '';
+
+    for (let p = 1; p <= 7; p++) {
+      let tr = document.createElement('tr');
+      tr.innerHTML = `<td><b>${p}교시</b></td>`;
+
+      days.forEach((day, dIdx) => {
+        const colIdx = (dIdx * 7) + (p - 1);
+        const groupCode = classSchedule[colIdx] ? String(classSchedule[colIdx]).trim() : '';
+
+        if (groupCode && student.choices[groupCode]) {
+          const subjName = student.choices[groupCode];
+          const info = DB.teachers[groupCode + "_" + subjName] || { teacher: "-", room: "-" };
+          tr.innerHTML += `
+            <td>
+              <div class="cell-subject">${subjName}</div>
+              <div class="cell-info">${info.teacher} | ${info.room}</div>
+            </td>`;
+        } else {
+          tr.innerHTML += `<td>-</td>`;
+        }
+      });
+      tbody.appendChild(tr);
+    }
+  }
+</script>
+</body>
+</html>
