@@ -37,7 +37,7 @@
     table.timetable th, table.timetable td { border: 1px solid #e2e8f0; padding: 10px 4px; font-size: 13px; word-break: keep-all; }
     table.timetable th { background: #f1f5f9; color: #475569; font-weight: 600; }
     .cell-subject { font-weight: bold; color: #0f172a; font-size: 14px; margin: 3px 0; }
-    .cell-info { font-size: 11px; color: #475569; background: #f1f5f9; padding: 2px 4px; border-radius: 4px; display: inline-block; margin-top: 2px; }
+    .cell-info { font-size: 11px; color: #1e293b; background: #f1f5f9; padding: 3px 6px; border-radius: 4px; display: inline-block; margin-top: 3px; font-weight: 500; }
     .badge-elective { display: inline-block; font-size: 10px; background: #dbeafe; color: #1e40af; padding: 2px 5px; border-radius: 4px; font-weight: bold; }
     
     .status-badge { display: inline-block; padding: 6px 14px; border-radius: 20px; font-size: 14px; font-weight: 600; margin-top: 10px; }
@@ -90,6 +90,7 @@
     
     <div class="card">
       <h3>1. 기초자료 업로드 및 데이터 상태</h3>
+      <button class="btn btn-outline" onclick="downloadTemplateWithInfoSheet()" style="margin-bottom: 12px;">📥 신규 양식 파일 다운로드 (3개 탭 포함)</button>
       <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
         📁 이곳을 클릭하여 작성한 엑셀 파일(.xlsx)을 등록하세요.
         <input type="file" id="fileInput" accept=".xlsx" style="display:none" onchange="handleFileUpload(this.files[0])">
@@ -120,12 +121,13 @@
 <script>
   let DB = {
     students: [],
-    timetableMap: {}, // 반별 시간표 Map (예: { 1: [...], 2: [...] })
+    courseInfo: {},  // 과목 정보 Map: { "A_일본어회화": { teacher: "조혜림", room: "1반" } }
+    timetableMap: {}, // 반별 전체시간표 Map
     usePassword: false
   };
 
   window.onload = function() {
-    const savedData = localStorage.getItem('school_timetable_db_v4');
+    const savedData = localStorage.getItem('school_timetable_db_v5');
     if (savedData) {
       DB = JSON.parse(savedData);
       document.getElementById('usePasswordCheck').checked = DB.usePassword || false;
@@ -161,12 +163,40 @@
     if (DB.students && DB.students.length > 0) {
       document.getElementById('uploadStatus').innerHTML = `
         <div class="status-badge status-ok">
-          ✅ 현재 <b>${DB.students.length}명</b>의 학생 데이터 및 전체시간표가 등록되어 있습니다.
+          ✅ 현재 <b>${DB.students.length}명</b>의 학생 데이터, 선택과목 매핑 정보 및 전체시간표가 모두 등록되어 있습니다.
         </div>`;
     }
   }
 
-  // 파일 업로드 처리
+  // 신규 양식 다운로드
+  function downloadTemplateWithInfoSheet() {
+    const wb = XLSX.utils.book_new();
+    const ws1 = [
+      ["연번", "학번", "이름", "A", "B", "C", "D", "E"],
+      [1, 20101, "구민서", "동아시아 역사기행", "도시의 미래탐구", "음악과 미디어", "법과사회", "일본어회화"],
+      [2, 20102, "김서준", "세계시민과 지리", "생활속의 화학", "음악과 미디어", "법과사회", "중국어회화"]
+    ];
+    const ws2 = [
+      ["선택군", "과목명", "담당교사", "강의실"],
+      ["A", "동아시아 역사기행", "김철수", "2-1"],
+      ["A", "세계시민과 지리", "이영희", "2-2"],
+      ["E", "일본어회화", "조혜림", "1반"],
+      ["E", "중국어회화", "왕웨이", "2반"]
+    ];
+    const ws3 = [
+      ["전체시간표"],
+      ["학급", "월", "", "", "", "", "", "", "화", "", "", "", "", "", "", "수", "", "", "", "", "", "", "목", "", "", "", "", "", "", "금"],
+      ["", 1, 2, 3, 4, 5, 6, 7, 1, 2, 3, 4, 5, 6, 7, 1, 2, 3, 4, 5, 6, 7, 1, 2, 3, 4, 5, 6, 7, 1, 2, 3, 4, 5, 6, 7],
+      [1, "A", "국어", "B", "C", "영어", "수학", "", "B", "C", "D", "E", "A", "", "", "C", "D", "E", "A", "B", "", "", "D", "E", "A", "B", "C", "", "", "E", "A", "B", "C", "D", "", ""]
+    ];
+
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ws1), "학생 선택과목 현황");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ws2), "선택과목 정보");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ws3), "전체시간표");
+    XLSX.writeFile(wb, "개인_시간표_기초자료[신규양식].xlsx");
+  }
+
+  // 엑셀 파일 파싱 처리
   function handleFileUpload(file) {
     if (!file) return;
     const reader = new FileReader();
@@ -175,7 +205,7 @@
         const data = new Uint8Array(e.target.result);
         const wb = XLSX.read(data, {type: 'array'});
         
-        // 1. 학생 선택과목 현황 파싱
+        // 1. [학생 선택과목 현황] 파싱
         const sSheet = wb.Sheets['학생 선택과목 현황'] || wb.Sheets[wb.SheetNames[0]];
         const sRows = XLSX.utils.sheet_to_json(sSheet, {header: 1});
         DB.students = [];
@@ -215,12 +245,31 @@
           }
         }
 
-        // 2. 전체시간표 파싱 (201 -> 1반 자동 정규화 로직 포함)
-        const ttSheet = wb.Sheets['전체시간표'] || wb.Sheets[wb.SheetNames[1]];
+        // 2. [선택과목 정보] 파싱
+        DB.courseInfo = {};
+        const infoSheet = wb.Sheets['선택과목 정보'];
+        if (infoSheet) {
+          const infoRows = XLSX.utils.sheet_to_json(infoSheet, {header: 1});
+          for (let i = 1; i < infoRows.length; i++) {
+            const row = infoRows[i];
+            if (row && row[0] && row[1]) {
+              const group = String(row[0]).trim().toUpperCase();
+              const subject = String(row[1]).trim();
+              const teacher = row[2] ? String(row[2]).trim() : '';
+              const room = row[3] ? String(row[3]).trim() : '';
+              
+              // 키: "A_동아시아 역사기행" 형태로 저장
+              DB.courseInfo[`${group}_${subject}`] = { teacher, room };
+            }
+          }
+        }
+
+        // 3. [전체시간표] 파싱 (201 -> 1반 자동 수용)
+        const ttSheet = wb.Sheets['전체시간표'] || wb.Sheets[wb.SheetNames[wb.SheetNames.length - 1]];
         const ttRows = XLSX.utils.sheet_to_json(ttSheet, {header: 1});
         DB.timetableMap = {};
 
-        let dataStartRow = 3; // 기본값 index 3 (4행)
+        let dataStartRow = 3;
         for (let r = 0; r < ttRows.length; r++) {
           const firstVal = ttRows[r] ? String(ttRows[r][0]).trim() : '';
           if (firstVal && !isNaN(parseInt(firstVal, 10))) {
@@ -232,17 +281,9 @@
         for (let r = dataStartRow; r < ttRows.length; r++) {
           const row = ttRows[r];
           if (row && row[0] !== undefined) {
-            const rawClassStr = String(row[0]).trim();
-            const rawNum = parseInt(rawClassStr.replace(/[^0-9]/g, ''), 10);
-            
+            const rawNum = parseInt(String(row[0]).replace(/[^0-9]/g, ''), 10);
             if (!isNaN(rawNum) && rawNum > 0) {
-              // 학급 번호 정규화: 201 -> 1반, 1 -> 1반, 102 -> 2반
-              let classNum = rawNum;
-              if (rawNum >= 100) {
-                classNum = rawNum % 100; // 뒷자리 2자리 추출 (예: 201 -> 1)
-              }
-
-              // 35개 교시 데이터 (월1~금7)
+              let classNum = rawNum >= 100 ? rawNum % 100 : rawNum;
               DB.timetableMap[classNum] = row.slice(1, 36);
             }
           }
@@ -250,16 +291,16 @@
 
         saveDB();
         showDataStatus();
-        alert(`총 ${DB.students.length}명의 학생 데이터 및 전체시간표가 업로드되었습니다!`);
+        alert(`총 ${DB.students.length}명의 학생 데이터 및 3개 시트 파싱이 모두 완료되었습니다!`);
       } catch (err) {
-        alert("엑셀 파일 파싱 오류: " + err);
+        alert("엑셀 파일 파싱 중 오류가 발생했습니다: " + err);
       }
     };
     reader.readAsArrayBuffer(file);
   }
 
   function saveDB() {
-    localStorage.setItem('school_timetable_db_v4', JSON.stringify(DB));
+    localStorage.setItem('school_timetable_db_v5', JSON.stringify(DB));
   }
 
   function togglePasswordSetting() {
@@ -295,7 +336,7 @@
     alert("학생 공지용 URL 링크가 클립보드에 복사되었습니다!");
   }
 
-  // 개인 시간표 조회 함수
+  // 시간표 조회 실행
   function searchTimetable() {
     const idInput = String(document.getElementById('searchStudentId').value).trim();
     const nameInput = String(document.getElementById('searchName').value).trim();
@@ -304,7 +345,7 @@
     if (!idInput || !nameInput) return alert("학번과 이름을 입력해주세요.");
 
     if (!DB.students || DB.students.length === 0) {
-      return alert("등록된 학생 데이터가 없습니다. [관리자 설정]에서 엑셀 파일을 등록해주세요.");
+      return alert("등록된 학생 데이터가 없습니다. [관리자 설정]에서 엑셀 파일을 업로드해주세요.");
     }
 
     const student = DB.students.find(s => s.id === idInput && s.name === nameInput);
@@ -316,9 +357,8 @@
       return alert("비밀번호가 일치하지 않습니다.");
     }
 
-    document.getElementById('studentInfo').innerText = `${student.id} ${student.name} 학생 시간표`;
+    document.getElementById('studentInfo').innerText = `${student.id} ${student.name} 학생 개인 시간표`;
 
-    // 학번에서 반(Class) 추출 (예: 20101 -> 1반, 21005 -> 10반)
     let classNum = 1;
     if (idInput.length === 5) {
       classNum = parseInt(idInput.substring(1, 3), 10);
@@ -331,7 +371,7 @@
     tbody.innerHTML = '';
 
     if (!classSchedule) {
-      tbody.innerHTML = `<tr><td colspan="6">${classNum}반의 전체시간표 정보를 찾을 수 없습니다. (업로드 상태를 확인해 주세요)</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="6">${classNum}반의 전체시간표 정보를 찾을 수 없습니다. (엑셀 파일의 [전체시간표] 탭을 확인해 주세요)</td></tr>`;
       return;
     }
 
@@ -341,34 +381,41 @@
 
       for (let d = 0; d < 5; d++) {
         const colIdx = (d * 7) + (p - 1);
-        const cellValue = classSchedule[colIdx] ? String(classSchedule[colIdx]).trim() : '';
+        const rawCell = classSchedule[colIdx] ? String(classSchedule[colIdx]).trim() : '';
 
-        if (!cellValue) {
+        if (!rawCell) {
           tr.innerHTML += `<td>-</td>`;
           continue;
         }
 
-        // 전체시간표 셀 파싱 (예: "A_조혜림-1반" -> 알파벳군: A, 상세정보: 조혜림-1반)
-        const groupMatch = cellValue.match(/^([A-Z])(_(.+))?$/i);
+        // 셀에서 맨 앞 알파벳 군 코드 추출 (예: "A", "A군", "A_이동" -> "A")
+        const matchGroup = rawCell.match(/^([A-Z])/i);
+        const groupCode = matchGroup ? matchGroup[1].toUpperCase() : null;
 
-        if (groupMatch) {
-          const groupCode = groupMatch[1].toUpperCase(); // 예: "A"
-          const detailInfo = groupMatch[3] || '';        // 예: "조혜림-1반"
+        if (groupCode && student.choices[groupCode]) {
           const selectedSubj = student.choices[groupCode];
+          
+          // [선택과목 정보] 탭에서 교사 및 강의실 정보 찾기
+          const key = `${groupCode}_${selectedSubj}`;
+          const info = DB.courseInfo[key];
 
-          if (selectedSubj) {
-            tr.innerHTML += `
-              <td>
-                <span class="badge-elective">${groupCode}군 선택</span>
-                <div class="cell-subject">${selectedSubj}</div>
-                ${detailInfo ? `<div class="cell-info">${detailInfo}</div>` : ''}
-              </td>`;
-          } else {
-            tr.innerHTML += `<td><div class="cell-subject">${cellValue}</div></td>`;
+          let detailText = '';
+          if (info) {
+            const parts = [];
+            if (info.teacher) parts.push(info.teacher);
+            if (info.room) parts.push(info.room);
+            if (parts.length > 0) detailText = parts.join(' - ');
           }
+
+          tr.innerHTML += `
+            <td>
+              <span class="badge-elective">${groupCode}군 선택</span>
+              <div class="cell-subject">${selectedSubj}</div>
+              ${detailText ? `<div class="cell-info">${detailText}</div>` : ''}
+            </td>`;
         } else {
-          // 공통 과목인 경우
-          tr.innerHTML += `<td><div class="cell-subject">${cellValue}</div></td>`;
+          // 공통 과목
+          tr.innerHTML += `<td><div class="cell-subject">${rawCell}</div></td>`;
         }
       }
       tbody.appendChild(tr);
