@@ -8,7 +8,7 @@
   <style>
     * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
     body { margin: 0; padding: 20px; background-color: #f1f5f9; color: #334155; }
-    .container { max-width: 850px; margin: 0 auto; background: #ffffff; padding: 30px; border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05); }
+    .container { max-width: 900px; margin: 0 auto; background: #ffffff; padding: 30px; border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05); }
     h1, h2 { text-align: center; color: #0f172a; margin-top: 0; }
     
     .tab-buttons { display: flex; gap: 10px; margin-bottom: 25px; border-bottom: 2px solid #e2e8f0; }
@@ -33,12 +33,12 @@
     .search-box input { padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 15px; outline: none; width: 180px; }
     .search-box input:focus { border-color: #2563eb; }
     
-    table.timetable { width: 100%; border-collapse: collapse; margin-top: 15px; text-align: center; background: #fff; border-radius: 8px; overflow: hidden; }
-    table.timetable th, table.timetable td { border: 1px solid #e2e8f0; padding: 12px 6px; font-size: 14px; }
+    table.timetable { width: 100%; border-collapse: collapse; margin-top: 15px; text-align: center; background: #fff; border-radius: 8px; overflow: hidden; table-layout: fixed; }
+    table.timetable th, table.timetable td { border: 1px solid #e2e8f0; padding: 10px 4px; font-size: 13px; word-break: keep-all; }
     table.timetable th { background: #f1f5f9; color: #475569; font-weight: 600; }
-    .cell-subject { font-weight: bold; color: #0f172a; font-size: 15px; }
-    .cell-info { font-size: 12px; color: #64748b; margin-top: 4px; }
-    .badge-elective { display: inline-block; font-size: 10px; background: #dbeafe; color: #1e40af; padding: 2px 6px; border-radius: 4px; margin-bottom: 4px; font-weight: bold; }
+    .cell-subject { font-weight: bold; color: #0f172a; font-size: 14px; margin: 3px 0; }
+    .cell-info { font-size: 11px; color: #475569; background: #f1f5f9; padding: 2px 4px; border-radius: 4px; display: inline-block; margin-top: 2px; }
+    .badge-elective { display: inline-block; font-size: 10px; background: #dbeafe; color: #1e40af; padding: 2px 5px; border-radius: 4px; font-weight: bold; }
     
     .status-badge { display: inline-block; padding: 6px 14px; border-radius: 20px; font-size: 14px; font-weight: 600; margin-top: 10px; }
     .status-ok { background: #d1fae5; color: #065f46; }
@@ -55,7 +55,7 @@
     <button class="tab-btn" onclick="switchTab('admin')">⚙️ 관리자 설정</button>
   </div>
 
-  <!-- 1. 시간표 조회 (학생/교사) -->
+  <!-- 1. 시간표 조회 Section -->
   <div id="userSection" class="section active">
     <h2>개인 시간표 조회</h2>
     <div class="search-box">
@@ -70,7 +70,7 @@
     <table class="timetable" id="timetableGrid">
       <thead>
         <tr>
-          <th style="width: 10%;">교시</th>
+          <th style="width: 11%;">교시</th>
           <th>월</th>
           <th>화</th>
           <th>수</th>
@@ -84,14 +84,12 @@
     </table>
   </div>
 
-  <!-- 2. 관리자 설정 -->
+  <!-- 2. 관리자 설정 Section -->
   <div id="adminSection" class="section">
     <h2>관리자 설정</h2>
     
     <div class="card">
       <h3>1. 기초자료 업로드 및 데이터 상태</h3>
-      <button class="btn btn-outline" onclick="downloadOriginalTemplate()">📥 기초자료[양식].xlsx 다운로드</button>
-      <br><br>
       <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
         📁 이곳을 클릭하여 작성한 엑셀 파일(.xlsx)을 등록하세요.
         <input type="file" id="fileInput" accept=".xlsx" style="display:none" onchange="handleFileUpload(this.files[0])">
@@ -122,12 +120,12 @@
 <script>
   let DB = {
     students: [],
-    timetableMap: {}, // 학급별 시간표 Map (예: { 1: [월1..금7], 2: [...] })
+    timetableMap: {}, // 반별 시간표 Map (예: { 1: [...], 2: [...] })
     usePassword: false
   };
 
   window.onload = function() {
-    const savedData = localStorage.getItem('school_timetable_db_v3');
+    const savedData = localStorage.getItem('school_timetable_db_v4');
     if (savedData) {
       DB = JSON.parse(savedData);
       document.getElementById('usePasswordCheck').checked = DB.usePassword || false;
@@ -163,29 +161,9 @@
     if (DB.students && DB.students.length > 0) {
       document.getElementById('uploadStatus').innerHTML = `
         <div class="status-badge status-ok">
-          ✅ 현재 <b>${DB.students.length}명</b>의 학생 데이터 및 전체시간표가 올바르게 등록되어 있습니다.
+          ✅ 현재 <b>${DB.students.length}명</b>의 학생 데이터 및 전체시간표가 등록되어 있습니다.
         </div>`;
     }
-  }
-
-  // 양식 다운로드
-  function downloadOriginalTemplate() {
-    const wb = XLSX.utils.book_new();
-    const ws1Data = [
-      ["연번", "학번", "이름", "A", "B", "C", "D", "E"],
-      [1, 20101, "구민서", "동아시아 역사기행", "도시의 미래탐구", "음악과 미디어", "법과사회", "일본어회화"],
-      [2, 20102, "김서준", "세계시민과 지리", "생활속의 화학", "음악과 미디어", "법과사회", "중국어회화"]
-    ];
-    const ws2Data = [
-      ["전체시간표"],
-      ["학급", "월", "", "", "", "", "", "", "화", "", "", "", "", "", "", "수", "", "", "", "", "", "", "목", "", "", "", "", "", "", "금"],
-      ["", 1, 2, 3, 4, 5, 6, 7, 1, 2, 3, 4, 5, 6, 7, 1, 2, 3, 4, 5, 6, 7, 1, 2, 3, 4, 5, 6, 7, 1, 2, 3, 4, 5, 6, 7],
-      [1, "A", "국어", "B", "C", "영어", "수학", "", "B", "C", "D", "E", "A", "", "", "C", "D", "E", "A", "B", "", "", "D", "E", "A", "B", "C", "", "", "E", "A", "B", "C", "D", "", ""]
-    ];
-
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ws1Data), "학생 선택과목 현황");
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ws2Data), "전체시간표");
-    XLSX.writeFile(wb, "개인 시간표 기초자료[양식].xlsx");
   }
 
   // 파일 업로드 처리
@@ -237,16 +215,15 @@
           }
         }
 
-        // 2. 전체시간표 파싱 (4행부터 실제 학급 데이터)
+        // 2. 전체시간표 파싱 (201 -> 1반 자동 정규화 로직 포함)
         const ttSheet = wb.Sheets['전체시간표'] || wb.Sheets[wb.SheetNames[1]];
         const ttRows = XLSX.utils.sheet_to_json(ttSheet, {header: 1});
         DB.timetableMap = {};
 
-        // 학급 데이터 시작 행 찾기 (A열이 숫자인 첫 행)
-        let dataStartRow = 3; // 기본값 4번째 행 (index 3)
+        let dataStartRow = 3; // 기본값 index 3 (4행)
         for (let r = 0; r < ttRows.length; r++) {
           const firstVal = ttRows[r] ? String(ttRows[r][0]).trim() : '';
-          if (firstVal && !isNaN(parseInt(firstVal, 10)) && parseInt(firstVal, 10) >= 1 && parseInt(firstVal, 10) <= 20) {
+          if (firstVal && !isNaN(parseInt(firstVal, 10))) {
             dataStartRow = r;
             break;
           }
@@ -255,9 +232,17 @@
         for (let r = dataStartRow; r < ttRows.length; r++) {
           const row = ttRows[r];
           if (row && row[0] !== undefined) {
-            const classNum = parseInt(String(row[0]).replace(/[^0-9]/g, ''), 10);
-            if (!isNaN(classNum) && classNum > 0) {
-              // 해당 반의 월1교시~금7교시 (35개 교시 데이터)
+            const rawClassStr = String(row[0]).trim();
+            const rawNum = parseInt(rawClassStr.replace(/[^0-9]/g, ''), 10);
+            
+            if (!isNaN(rawNum) && rawNum > 0) {
+              // 학급 번호 정규화: 201 -> 1반, 1 -> 1반, 102 -> 2반
+              let classNum = rawNum;
+              if (rawNum >= 100) {
+                classNum = rawNum % 100; // 뒷자리 2자리 추출 (예: 201 -> 1)
+              }
+
+              // 35개 교시 데이터 (월1~금7)
               DB.timetableMap[classNum] = row.slice(1, 36);
             }
           }
@@ -265,7 +250,7 @@
 
         saveDB();
         showDataStatus();
-        alert(`총 ${DB.students.length}명의 학생 기초자료 및 전체시간표가 등록되었습니다!`);
+        alert(`총 ${DB.students.length}명의 학생 데이터 및 전체시간표가 업로드되었습니다!`);
       } catch (err) {
         alert("엑셀 파일 파싱 오류: " + err);
       }
@@ -274,7 +259,7 @@
   }
 
   function saveDB() {
-    localStorage.setItem('school_timetable_db_v3', JSON.stringify(DB));
+    localStorage.setItem('school_timetable_db_v4', JSON.stringify(DB));
   }
 
   function togglePasswordSetting() {
@@ -310,7 +295,7 @@
     alert("학생 공지용 URL 링크가 클립보드에 복사되었습니다!");
   }
 
-  // 개인 시간표 조회 핵심 로직
+  // 개인 시간표 조회 함수
   function searchTimetable() {
     const idInput = String(document.getElementById('searchStudentId').value).trim();
     const nameInput = String(document.getElementById('searchName').value).trim();
@@ -322,7 +307,6 @@
       return alert("등록된 학생 데이터가 없습니다. [관리자 설정]에서 엑셀 파일을 등록해주세요.");
     }
 
-    // 1. 학생 검색
     const student = DB.students.find(s => s.id === idInput && s.name === nameInput);
     if (!student) {
       return alert(`입력하신 학번(${idInput})과 이름(${nameInput})을 찾을 수 없습니다.`);
@@ -332,9 +316,9 @@
       return alert("비밀번호가 일치하지 않습니다.");
     }
 
-    document.getElementById('studentInfo').innerText = `${student.id} ${student.name} 학생 개인 시간표`;
+    document.getElementById('studentInfo').innerText = `${student.id} ${student.name} 학생 시간표`;
 
-    // 학번에서 반(Class) 정보 추출 (예: 20101 -> 1반, 21005 -> 10반)
+    // 학번에서 반(Class) 추출 (예: 20101 -> 1반, 21005 -> 10반)
     let classNum = 1;
     if (idInput.length === 5) {
       classNum = parseInt(idInput.substring(1, 3), 10);
@@ -342,18 +326,15 @@
       classNum = parseInt(idInput.substring(1, 2), 10);
     }
 
-    // 2. 전체시간표 Map에서 해당 반 데이터 꺼내기
     const classSchedule = DB.timetableMap[classNum];
-
     const tbody = document.querySelector('#timetableGrid tbody');
     tbody.innerHTML = '';
 
     if (!classSchedule) {
-      tbody.innerHTML = `<tr><td colspan="6">${classNum}반의 전체시간표 정보를 찾을 수 없습니다. (업로드된 엑셀 파일의 [전체시간표] 탭을 확인해주세요)</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="6">${classNum}반의 전체시간표 정보를 찾을 수 없습니다. (업로드 상태를 확인해 주세요)</td></tr>`;
       return;
     }
 
-    // 3. 교시별 요일 계산 (월~금, 1~7교시)
     for (let p = 1; p <= 7; p++) {
       let tr = document.createElement('tr');
       tr.innerHTML = `<td><b>${p}교시</b></td>`;
@@ -367,26 +348,27 @@
           continue;
         }
 
-        // 교과군 코드(A~Z) 추출 (예: "A", "A_동아시아", "B(김철수)" 등)
-        const matchGroup = cellValue.match(/^([A-Z])/i);
-        const groupCode = matchGroup ? matchGroup[1].toUpperCase() : null;
+        // 전체시간표 셀 파싱 (예: "A_조혜림-1반" -> 알파벳군: A, 상세정보: 조혜림-1반)
+        const groupMatch = cellValue.match(/^([A-Z])(_(.+))?$/i);
 
-        // 선택과목(이동수업)인 경우
-        if (groupCode && student.choices[groupCode]) {
+        if (groupMatch) {
+          const groupCode = groupMatch[1].toUpperCase(); // 예: "A"
+          const detailInfo = groupMatch[3] || '';        // 예: "조혜림-1반"
           const selectedSubj = student.choices[groupCode];
 
-          tr.innerHTML += `
-            <td>
-              <span class="badge-elective">${groupCode}군 선택</span>
-              <div class="cell-subject">${selectedSubj}</div>
-            </td>`;
-        } 
-        // 공통과목인 경우
-        else {
-          tr.innerHTML += `
-            <td>
-              <div class="cell-subject">${cellValue}</div>
-            </td>`;
+          if (selectedSubj) {
+            tr.innerHTML += `
+              <td>
+                <span class="badge-elective">${groupCode}군 선택</span>
+                <div class="cell-subject">${selectedSubj}</div>
+                ${detailInfo ? `<div class="cell-info">${detailInfo}</div>` : ''}
+              </td>`;
+          } else {
+            tr.innerHTML += `<td><div class="cell-subject">${cellValue}</div></td>`;
+          }
+        } else {
+          // 공통 과목인 경우
+          tr.innerHTML += `<td><div class="cell-subject">${cellValue}</div></td>`;
         }
       }
       tbody.appendChild(tr);
