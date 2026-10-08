@@ -11,7 +11,6 @@
     .container { max-width: 900px; margin: 0 auto; background: #ffffff; padding: 30px; border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05); position: relative; }
     h1, h2 { text-align: center; color: #0f172a; margin-top: 0; }
     
-    /* 관리자 모드일 때만 보이는 탭 */
     .tab-buttons { display: none; gap: 10px; margin-bottom: 25px; border-bottom: 2px solid #e2e8f0; }
     .tab-btn { flex: 1; padding: 14px; border: none; background: none; font-size: 16px; font-weight: bold; cursor: pointer; color: #64748b; border-bottom: 3px solid transparent; transition: all 0.2s; }
     .tab-btn.active { color: #2563eb; border-bottom-color: #2563eb; }
@@ -43,6 +42,7 @@
     
     .status-badge { display: inline-block; padding: 6px 14px; border-radius: 20px; font-size: 14px; font-weight: 600; margin-top: 10px; }
     .status-ok { background: #d1fae5; color: #065f46; }
+    .status-warn { background: #fef3c7; color: #92400e; }
     
     .share-link-box { display: flex; gap: 8px; margin-top: 10px; }
     .share-link-box input { flex: 1; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; }
@@ -55,7 +55,6 @@
 <body>
 
 <div class="container">
-  <!-- 관리자 로그인 완료 시에만 보이는 상단 탭 -->
   <div class="tab-buttons" id="adminTabButtons">
     <button class="tab-btn active" onclick="switchTab('user')">📅 시간표 조회 (학생용)</button>
     <button class="tab-btn" onclick="switchTab('admin')">⚙️ 관리자 설정</button>
@@ -99,18 +98,26 @@
     <h2>⚙️ 관리자 설정</h2>
     
     <div class="card">
-      <h3>1. 기초자료 업로드 및 데이터 상태</h3>
+      <h3>1. 기초자료 업로드 및 데이터 동기화</h3>
       <button class="btn btn-outline" onclick="downloadTemplateWithInfoSheet()" style="margin-bottom: 12px;">📥 신규 양식 파일 다운로드 (3개 탭 포함)</button>
       <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
-        📁 이곳을 클릭하여 작성한 엑셀 파일(.xlsx)을 등록하세요.
+        📁 이곳을 클릭하여 작성한 엑셀 파일(.xlsx)을 변환하세요.
         <input type="file" id="fileInput" accept=".xlsx" style="display:none" onchange="handleFileUpload(this.files[0])">
       </div>
       <div id="uploadStatus"></div>
+      
+      <!-- data.json 생성/다운로드 영역 -->
+      <div id="jsonDownloadBox" style="display:none; margin-top: 15px; padding: 15px; background: #e0f2fe; border-radius: 8px; border: 1px solid #bae6fd;">
+        <p style="margin: 0 0 10px 0; font-size: 14px; font-weight: bold; color: #0369a1;">
+          🚀 엑셀 변환 완료! 아래 버튼을 눌러 생성된 <code style="background:#fff; padding:2px 6px; border-radius:4px;">data.json</code> 파일로 깃허브에 덮어쓰기(Upload)하세요.
+        </p>
+        <button class="btn btn-success" onclick="downloadDataJson()">💾 data.json 다운로드</button>
+      </div>
     </div>
 
     <div class="card">
       <h3>2. 학생 공지용 URL 링크</h3>
-      <p style="font-size: 14px; color: #64748b;">학생들에게는 아래 링크를 공유하세요. (관리자 화면이 숨겨진 전용 화면으로 이동합니다)</p>
+      <p style="font-size: 14px; color: #64748b;">학생들에게는 아래 링크를 공유하세요.</p>
       <div class="share-link-box">
         <input type="text" id="publicNoticeUrl" readonly>
         <button class="btn btn-success" onclick="copyNoticeUrl()">🔗 학생용 링크 복사</button>
@@ -140,48 +147,43 @@
     courseInfo: {},
     timetableMap: {},
     usePassword: false,
-    adminPassword: "1234" // 기본 관리자 암호
+    adminPassword: "1234"
   };
 
   let isAdminLoggedIn = false;
 
   window.onload = function() {
-    const savedData = localStorage.getItem('school_timetable_db_v6');
-    if (savedData) {
-      DB = JSON.parse(savedData);
-      if (!DB.adminPassword) DB.adminPassword = "1234";
-      document.getElementById('usePasswordCheck').checked = DB.usePassword || false;
-      updatePasswordUI();
-      showDataStatus();
-    }
-    
-    // 학생 공지용 URL (파라미터 및 hash 제거된 순수 접속 URL)
+    // 깃허브 상의 data.json 서버 파일에서 데이터 불러오기
+    fetch('./data.json?v=' + new Date().getTime())
+      .then(response => {
+        if (!response.ok) throw new Error("File not found");
+        return response.json();
+      })
+      .then(data => {
+        if (data && data.students) {
+          DB = data;
+          if (!DB.adminPassword) DB.adminPassword = "1234";
+          document.getElementById('usePasswordCheck').checked = DB.usePassword || false;
+          updatePasswordUI();
+          showDataStatus(true);
+        } else {
+          showDataStatus(false);
+        }
+      })
+      .catch(err => {
+        console.log("data.json 읽기 실패:", err);
+        showDataStatus(false);
+      });
+
     const baseUrl = window.location.origin + window.location.pathname;
     document.getElementById('publicNoticeUrl').value = baseUrl;
 
     const urlParams = new URLSearchParams(window.location.search);
-    const paramMode = urlParams.get('mode');
-    
-    // URL에 ?mode=admin 이 붙어있는 경우 바로 관리자 인증 요청
-    if (paramMode === 'admin') {
-      accessAdminMode();
-    }
-
-    // 자동 검색 파라미터가 있을 경우
-    const paramId = urlParams.get('id');
-    const paramName = urlParams.get('name');
-    if (paramId && paramName) {
-      document.getElementById('searchStudentId').value = paramId;
-      document.getElementById('searchName').value = paramName;
-      searchTimetable();
-    }
+    if (urlParams.get('mode') === 'admin') accessAdminMode();
   };
 
   function accessAdminMode() {
-    if (isAdminLoggedIn) {
-      switchTab('admin');
-      return;
-    }
+    if (isAdminLoggedIn) { switchTab('admin'); return; }
     const inputPwd = prompt("관리자 암호를 입력하세요:");
     if (inputPwd === null) return;
     
@@ -199,8 +201,8 @@
     const newPwd = document.getElementById('adminNewPassword').value.trim();
     if (!newPwd) return alert("새 관리자 암호를 입력하세요.");
     DB.adminPassword = newPwd;
-    saveDB();
-    alert("관리자 암호가 변경되었습니다.");
+    document.getElementById('jsonDownloadBox').style.display = 'block';
+    alert("관리자 암호가 변경되었습니다. 'data.json 다운로드' 후 깃허브에 업데이트해주세요.");
     document.getElementById('adminNewPassword').value = '';
   }
 
@@ -216,11 +218,16 @@
     }
   }
 
-  function showDataStatus() {
-    if (DB.students && DB.students.length > 0) {
+  function showDataStatus(isLoaded) {
+    if (isLoaded && DB.students && DB.students.length > 0) {
       document.getElementById('uploadStatus').innerHTML = `
         <div class="status-badge status-ok">
-          ✅ 현재 <b>${DB.students.length}명</b>의 학생 데이터 및 시간표 매핑 정보가 등록되어 있습니다.
+          ✅ 데이터 연결 완료: 현재 <b>${DB.students.length}명</b>의 학생 데이터가 전체 공유 중입니다.
+        </div>`;
+    } else {
+      document.getElementById('uploadStatus').innerHTML = `
+        <div class="status-badge status-warn">
+          ⚠️ 등록된 서버 데이터(data.json)가 없거나 비어있습니다. 아래에서 엑셀을 변환해주세요.
         </div>`;
     }
   }
@@ -260,7 +267,6 @@
         const data = new Uint8Array(e.target.result);
         const wb = XLSX.read(data, {type: 'array'});
         
-        // 1. [학생 선택과목 현황] 파싱
         const sSheet = wb.Sheets['학생 선택과목 현황'] || wb.Sheets[wb.SheetNames[0]];
         const sRows = XLSX.utils.sheet_to_json(sSheet, {header: 1});
         DB.students = [];
@@ -300,7 +306,6 @@
           }
         }
 
-        // 2. [선택과목 정보] 파싱
         DB.courseInfo = {};
         const infoSheet = wb.Sheets['선택과목 정보'];
         if (infoSheet) {
@@ -317,7 +322,6 @@
           }
         }
 
-        // 3. [전체시간표] 파싱
         const ttSheet = wb.Sheets['전체시간표'] || wb.Sheets[wb.SheetNames[wb.SheetNames.length - 1]];
         const ttRows = XLSX.utils.sheet_to_json(ttSheet, {header: 1});
         DB.timetableMap = {};
@@ -342,9 +346,8 @@
           }
         }
 
-        saveDB();
-        showDataStatus();
-        alert(`총 ${DB.students.length}명의 학생 데이터 업로드가 완료되었습니다.`);
+        document.getElementById('jsonDownloadBox').style.display = 'block';
+        alert(`총 ${DB.students.length}명의 학생 데이터 변환이 완료되었습니다. 아래 [data.json 다운로드] 버튼을 누르세요.`);
       } catch (err) {
         alert("엑셀 파일 파싱 오류: " + err);
       }
@@ -352,14 +355,21 @@
     reader.readAsArrayBuffer(file);
   }
 
-  function saveDB() {
-    localStorage.setItem('school_timetable_db_v6', JSON.stringify(DB));
+  function downloadDataJson() {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(DB, null, 2));
+    const dlAnchorElem = document.createElement('a');
+    dlAnchorElem.setAttribute("href", dataStr);
+    dlAnchorElem.setAttribute("download", "data.json");
+    document.body.appendChild(dlAnchorElem);
+    dlAnchorElem.click();
+    dlAnchorElem.remove();
   }
 
   function togglePasswordSetting() {
     DB.usePassword = document.getElementById('usePasswordCheck').checked;
-    saveDB();
     updatePasswordUI();
+    document.getElementById('jsonDownloadBox').style.display = 'block';
+    alert("설정이 변경되었습니다. 'data.json 다운로드' 후 깃허브에 업데이트해주세요.");
   }
 
   function updatePasswordUI() {
@@ -397,7 +407,7 @@
     if (!idInput || !nameInput) return alert("학번과 이름을 입력해주세요.");
 
     if (!DB.students || DB.students.length === 0) {
-      return alert("등록된 학생 데이터가 없습니다.");
+      return alert("등록된 학생 데이터가 없습니다. 관리자에게 문의하세요.");
     }
 
     const student = DB.students.find(s => s.id === idInput && s.name === nameInput);
