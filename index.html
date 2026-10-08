@@ -65,7 +65,7 @@
     <h2>🏫 개인 시간표 조회</h2>
     <div class="search-box">
       <input type="text" id="searchStudentId" placeholder="학번 (예: 20101)">
-      <input type="text" id="searchName" placeholder="이름 (예: 구민서)">
+      <input type="text" id="searchName" placeholder="이름 (예: 홍길동)">
       <input type="password" id="searchPassword" placeholder="비밀번호 4자리" style="display:none;">
       <button class="btn" onclick="searchTimetable()">조회하기</button>
     </div>
@@ -106,7 +106,6 @@
       </div>
       <div id="uploadStatus"></div>
       
-      <!-- data.json 생성/다운로드 영역 -->
       <div id="jsonDownloadBox" style="display:none; margin-top: 15px; padding: 15px; background: #e0f2fe; border-radius: 8px; border: 1px solid #bae6fd;">
         <p style="margin: 0 0 10px 0; font-size: 14px; font-weight: bold; color: #0369a1;">
           🚀 엑셀 변환 완료! 아래 버튼을 눌러 생성된 <code style="background:#fff; padding:2px 6px; border-radius:4px;">data.json</code> 파일로 깃허브에 덮어쓰기(Upload)하세요.
@@ -153,7 +152,6 @@
   let isAdminLoggedIn = false;
 
   window.onload = function() {
-    // 깃허브 상의 data.json 서버 파일에서 데이터 불러오기
     fetch('./data.json?v=' + new Date().getTime())
       .then(response => {
         if (!response.ok) throw new Error("File not found");
@@ -236,8 +234,8 @@
     const wb = XLSX.utils.book_new();
     const ws1 = [
       ["연번", "학번", "이름", "A", "B", "C", "D", "E"],
-      [1, 20101, "구민서", "동아시아 역사기행", "도시의 미래탐구", "음악과 미디어", "법과사회", "일본어회화"],
-      [2, 20102, "김서준", "세계시민과 지리", "생활속의 화학", "음악과 미디어", "법과사회", "중국어회화"]
+      [1, 20101, "홍길동", "동아시아 역사기행", "도시의 미래탐구", "음악과 미디어", "법과사회", "일본어회화"],
+      [2, 20102, "이순신", "세계시민과 지리", "생활속의 화학", "음악과 미디어", "법과사회", "중국어회화"]
     ];
     const ws2 = [
       ["선택군", "과목명", "담당교사", "강의실"],
