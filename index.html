@@ -47,6 +47,11 @@
     .share-link-box { display: flex; gap: 8px; margin-top: 10px; }
     .share-link-box input { flex: 1; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; }
     
+    .period-setting-grid { display: flex; gap: 10px; margin-top: 10px; }
+    .period-setting-item { flex: 1; text-align: center; }
+    .period-setting-item label { display: block; font-size: 13px; font-weight: bold; margin-bottom: 4px; color: #475569; }
+    .period-setting-item input { width: 100%; text-align: center; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-weight: bold; }
+
     .footer-admin-link { text-align: right; margin-top: 15px; font-size: 12px; }
     .footer-admin-link a { color: #94a3b8; text-decoration: none; }
     .footer-admin-link a:hover { color: #64748b; text-decoration: underline; }
@@ -98,7 +103,19 @@
     <h2>⚙️ 관리자 설정</h2>
     
     <div class="card">
-      <h3>1. 기초자료 업로드 및 데이터 동기화</h3>
+      <h3>1. 요일별 교시 수 설정</h3>
+      <p style="font-size: 13px; color: #64748b; margin-top: -5px;">학교 시간표에 맞게 요일별 마지막 교시 수를 지정해주세요. (기본값: 월6, 화7, 수6, 목7, 금6)</p>
+      <div class="period-setting-grid">
+        <div class="period-setting-item"><label>월요일</label><input type="number" id="p_mon" value="6" min="1" max="10" onchange="updatePeriodSettings()"></div>
+        <div class="period-setting-item"><label>화요일</label><input type="number" id="p_tue" value="7" min="1" max="10" onchange="updatePeriodSettings()"></div>
+        <div class="period-setting-item"><label>수요일</label><input type="number" id="p_wed" value="6" min="1" max="10" onchange="updatePeriodSettings()"></div>
+        <div class="period-setting-item"><label>목요일</label><input type="number" id="p_thu" value="7" min="1" max="10" onchange="updatePeriodSettings()"></div>
+        <div class="period-setting-item"><label>금요일</label><input type="number" id="p_fri" value="6" min="1" max="10" onchange="updatePeriodSettings()"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>2. 기초자료 업로드 및 데이터 동기화</h3>
       <button class="btn btn-outline" onclick="downloadTemplateWithInfoSheet()" style="margin-bottom: 12px;">📥 신규 양식 파일 다운로드 (3개 탭 포함)</button>
       <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
         📁 이곳을 클릭하여 작성한 엑셀 파일(.xlsx)을 변환하세요.
@@ -108,14 +125,14 @@
       
       <div id="jsonDownloadBox" style="display:none; margin-top: 15px; padding: 15px; background: #e0f2fe; border-radius: 8px; border: 1px solid #bae6fd;">
         <p style="margin: 0 0 10px 0; font-size: 14px; font-weight: bold; color: #0369a1;">
-          🚀 엑셀 변환 완료! 아래 버튼을 눌러 생성된 <code style="background:#fff; padding:2px 6px; border-radius:4px;">data.json</code> 파일로 깃허브에 덮어쓰기(Upload)하세요.
+          🚀 데이터 설정 완료! 아래 버튼을 눌러 생성된 <code style="background:#fff; padding:2px 6px; border-radius:4px;">data.json</code> 파일로 깃허브에 덮어쓰기(Upload)하세요.
         </p>
         <button class="btn btn-success" onclick="downloadDataJson()">💾 data.json 다운로드</button>
       </div>
     </div>
 
     <div class="card">
-      <h3>2. 학생 공지용 URL 링크</h3>
+      <h3>3. 학생 공지용 URL 링크</h3>
       <p style="font-size: 14px; color: #64748b;">학생들에게는 아래 링크를 공유하세요.</p>
       <div class="share-link-box">
         <input type="text" id="publicNoticeUrl" readonly>
@@ -124,7 +141,7 @@
     </div>
 
     <div class="card">
-      <h3>3. 보안 및 비밀번호 설정</h3>
+      <h3>4. 보안 및 비밀번호 설정</h3>
       <label style="font-size: 15px; cursor: pointer; font-weight: 600;">
         <input type="checkbox" id="usePasswordCheck" onchange="togglePasswordSetting()" style="width: 18px; height: 18px;"> 학생별 비밀번호(4자리) 사용하기
       </label>
@@ -145,6 +162,7 @@
     students: [],
     courseInfo: {},
     timetableMap: {},
+    dayPeriods: [6, 7, 6, 7, 6], // 기본값: 월(6), 화(7), 수(6), 목(7), 금(6)
     usePassword: false,
     adminPassword: "1234"
   };
@@ -161,6 +179,9 @@
         if (data && data.students) {
           DB = data;
           if (!DB.adminPassword) DB.adminPassword = "1234";
+          if (!DB.dayPeriods) DB.dayPeriods = [6, 7, 6, 7, 6];
+          
+          loadPeriodSettingsUI();
           document.getElementById('usePasswordCheck').checked = DB.usePassword || false;
           updatePasswordUI();
           showDataStatus(true);
@@ -179,6 +200,27 @@
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('mode') === 'admin') accessAdminMode();
   };
+
+  function loadPeriodSettingsUI() {
+    if (DB.dayPeriods && DB.dayPeriods.length === 5) {
+      document.getElementById('p_mon').value = DB.dayPeriods[0];
+      document.getElementById('p_tue').value = DB.dayPeriods[1];
+      document.getElementById('p_wed').value = DB.dayPeriods[2];
+      document.getElementById('p_thu').value = DB.dayPeriods[3];
+      document.getElementById('p_fri').value = DB.dayPeriods[4];
+    }
+  }
+
+  function updatePeriodSettings() {
+    DB.dayPeriods = [
+      parseInt(document.getElementById('p_mon').value, 10) || 6,
+      parseInt(document.getElementById('p_tue').value, 10) || 7,
+      parseInt(document.getElementById('p_wed').value, 10) || 6,
+      parseInt(document.getElementById('p_thu').value, 10) || 7,
+      parseInt(document.getElementById('p_fri').value, 10) || 6
+    ];
+    document.getElementById('jsonDownloadBox').style.display = 'block';
+  }
 
   function accessAdminMode() {
     if (isAdminLoggedIn) { switchTab('admin'); return; }
@@ -246,9 +288,9 @@
     ];
     const ws3 = [
       ["전체시간표"],
-      ["학급", "월", "", "", "", "", "", "", "화", "", "", "", "", "", "", "수", "", "", "", "", "", "", "목", "", "", "", "", "", "", "금"],
-      ["", 1, 2, 3, 4, 5, 6, 7, 1, 2, 3, 4, 5, 6, 7, 1, 2, 3, 4, 5, 6, 7, 1, 2, 3, 4, 5, 6, 7, 1, 2, 3, 4, 5, 6, 7],
-      [1, "A", "국어", "B", "C", "영어", "수학", "", "B", "C", "D", "E", "A", "", "", "C", "D", "E", "A", "B", "", "", "D", "E", "A", "B", "C", "", "", "E", "A", "B", "C", "D", "", ""]
+      ["학급", "월", "", "", "", "", "", "화", "", "", "", "", "", "", "수", "", "", "", "", "", "목", "", "", "", "", "", "", "금"],
+      ["", 1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6, 7, 1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6, 7, 1, 2, 3, 4, 5, 6],
+      [1, "A", "국어", "B", "C", "영어", "수학", "B", "C", "D", "E", "A", "", "", "C", "D", "E", "A", "B", "", "D", "E", "A", "B", "C", "", "", "E", "A", "B", "C", "D", ""]
     ];
 
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ws1), "학생 선택과목 현황");
@@ -339,7 +381,7 @@
             const rawNum = parseInt(String(row[0]).replace(/[^0-9]/g, ''), 10);
             if (!isNaN(rawNum) && rawNum > 0) {
               let classNum = rawNum >= 100 ? rawNum % 100 : rawNum;
-              DB.timetableMap[classNum] = row.slice(1, 36);
+              DB.timetableMap[classNum] = row.slice(1);
             }
           }
         }
@@ -354,6 +396,7 @@
   }
 
   function downloadDataJson() {
+    updatePeriodSettings();
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(DB, null, 2));
     const dlAnchorElem = document.createElement('a');
     dlAnchorElem.setAttribute("href", dataStr);
@@ -435,12 +478,29 @@
       return;
     }
 
-    for (let p = 1; p <= 7; p++) {
+    const dayPeriods = DB.dayPeriods || [6, 7, 6, 7, 6];
+    const maxPeriod = Math.max(...dayPeriods);
+
+    for (let p = 1; p <= maxPeriod; p++) {
       let tr = document.createElement('tr');
       tr.innerHTML = `<td><b>${p}교시</b></td>`;
 
       for (let d = 0; d < 5; d++) {
-        const colIdx = (d * 7) + (p - 1);
+        const periodCount = dayPeriods[d];
+        
+        // p교시가 해당 요일의 최대 교시 수를 넘는 경우
+        if (p > periodCount) {
+          tr.innerHTML += `<td style="background-color: #f8fafc; color: #cbd5e1;">-</td>`;
+          continue;
+        }
+
+        // 각 요일 시작 컬럼 인덱스 계산
+        let startCol = 0;
+        for (let k = 0; k < d; k++) {
+          startCol += dayPeriods[k];
+        }
+
+        const colIdx = startCol + (p - 1);
         const rawCell = classSchedule[colIdx] ? String(classSchedule[colIdx]).trim() : '';
 
         if (!rawCell) {
