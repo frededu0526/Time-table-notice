@@ -150,6 +150,7 @@
 
     <div class="card">
       <h3>2. 기초자료 업로드 및 데이터 동기화</h3>
+      <button class="btn btn-outline" onclick="downloadTemplateWithInfoSheet()" style="margin-bottom: 12px;">📥 신규 양식 파일 다운로드 (6개 탭 포함)</button>
       <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
         📁 이곳을 클릭하여 작성한 엑셀 파일(.xlsx)을 변환하세요.
         <input type="file" id="fileInput" accept=".xlsx" style="display:none" onchange="handleFileUpload(this.files[0])">
@@ -343,7 +344,55 @@
     }
   }
 
-  // 학번 파싱 및 학급 코드 생성 함수 (예: 10101 -> {grade:1, classCode:"1-1", className:"1학년 1반"})
+  // 6개 탭 포함된 신규 양식 파일 생성 및 다운로드
+  function downloadTemplateWithInfoSheet() {
+    const wb = XLSX.utils.book_new();
+    
+    const ws1 = [
+      ["일련번호", "학번", "이름"],
+      [1, 10101, "홍길동"],
+      [2, 10102, "이순신"]
+    ];
+    const ws2 = [
+      ["연번", "학번", "이름", "A", "B", "C", "D", "E"],
+      [1, 20101, "강감찬", "동아시아 역사기행", "도시의 미래탐구", "음악과 미디어", "법과사회", "일본어회화"],
+      [2, 20102, "유관순", "세계시민과 지리", "생활속의 화학", "음악과 미디어", "법과사회", "중국어회화"]
+    ];
+    const ws3 = [
+      ["선택군", "과목명", "담당교사", "강의실"],
+      ["A", "동아시아 역사기행", "김철수", "2-1반"],
+      ["A", "세계시민과 지리", "이영희", "2-2반"],
+      ["E", "일본어회화", "조혜림", "1반"]
+    ];
+    const ws4 = [
+      ["연번", "학번", "이름", "A", "B", "C", "D", "E"],
+      [1, 30101, "신사임당", "동아시아 역사기행", "도시의 미래탐구", "음악과 미디어", "법과사회", "일본어회화"],
+      [2, 30102, "정약용", "세계시민과 지리", "생활속의 화학", "음악과 미디어", "법과사회", "중국어회화"]
+    ];
+    const ws5 = [
+      ["선택군", "과목명", "담당교사", "강의실"],
+      ["A", "동아시아 역사기행", "김철수", "3-1반"],
+      ["A", "세계시민과 지리", "이영희", "3-2반"],
+      ["E", "일본어회화", "조혜림", "2반"]
+    ];
+    const ws6 = [
+      ["전체시간표"],
+      ["학급", "월", "", "", "", "", "", "화", "", "", "", "", "", "", "수", "", "", "", "", "", "목", "", "", "", "", "", "", "금"],
+      ["", 1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6, 7, 1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6, 7, 1, 2, 3, 4, 5, 6],
+      ["1-1", "국어\n김보연", "수학\n서정은", "영어\n정연주", "한국사\n박말이", "통합사회\n이선영", "통합과학\n최은숙", "체육\n이태양", "국어\n김보연", "수학\n서정은", "영어\n정연주", "한국사\n박말이", "창체\n이태양", "진로\n남경숙", "통합사회\n이선영", "통합과학\n최은숙", "정보\n이은별", "국어\n김보연", "수학\n서정은", "영어\n정연주", "체육\n이태양", "한국사\n박말이", "통합사회\n이선영", "통합과학\n최은숙", "정보\n이은별", "창체\n이태양", "진로\n남경숙", "국어\n김보연", "수학\n서정은", "영어\n정연주", "한국사\n박말이", "통합사회\n이선영", "통합과학\n최은숙"],
+      ["2-1", "A", "국어", "B", "C", "영어", "수학", "B", "C", "D", "E", "A", "", "", "C", "D", "E", "A", "B", "", "D", "E", "A", "B", "C", "", "", "E", "A", "B", "C", "D", ""],
+      ["3-1", "A", "국어", "B", "C", "영어", "수학", "B", "C", "D", "E", "A", "", "", "C", "D", "E", "A", "B", "", "D", "E", "A", "B", "C", "", "", "E", "A", "B", "C", "D", ""]
+    ];
+
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ws1), "1학년 명렬표");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ws2), "2학년 학생 선택과목 현황");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ws3), "2학년 선택과목 정보");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ws4), "3학년 학생 선택과목 현황");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ws5), "3학년 선택과목 정보");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ws6), "전체시간표");
+    XLSX.writeFile(wb, "개인_시간표_기초자료[신규양식].xlsx");
+  }
+
   function parseStudentClassInfo(idStr) {
     let sid = String(idStr).trim();
     let grade = 1, classNum = 1;
@@ -364,7 +413,6 @@
     };
   }
 
-  // 엑셀 업로드 및 파싱
   function handleFileUpload(file) {
     if (!file) return;
     const reader = new FileReader();
@@ -409,7 +457,6 @@
                     }
                   }
                   
-                  // 기존 동일 학번 중복 제거 후 추가
                   const existingIdx = DB.students.findIndex(s => s.id === sid);
                   const studentData = {
                     id: sid,
@@ -441,7 +488,6 @@
                 const teacher = row[2] ? String(row[2]).trim() : '';
                 const room = row[3] ? String(row[3]).trim() : '';
                 
-                // 키: "2_A_법과사회" 또는 "3_A_법과사회"
                 if (grade > 0) {
                   DB.courseInfo[`${grade}_${group}_${subject}`] = { teacher, room };
                 }
@@ -466,9 +512,8 @@
         for (let r = dataStartRow; r < ttRows.length; r++) {
           const row = ttRows[r];
           if (row && row[0] !== undefined) {
-            let classRaw = String(row[0]).trim(); // 예: "1-1", "2-1"
+            let classRaw = String(row[0]).trim();
             if (classRaw && classRaw !== "학급") {
-              // "1-1반" -> "1-1" 정규화
               classRaw = classRaw.replace('반', '').trim();
               DB.timetableMap[classRaw] = row.slice(1);
             }
@@ -587,7 +632,6 @@
         const groupCode = matchGroup ? matchGroup[1].toUpperCase() : null;
 
         if (groupCode && student.choices && student.choices[groupCode]) {
-          // 2, 3학년 이동 선택 과목
           const selectedSubj = student.choices[groupCode];
           const key = `${classInfo.grade}_${groupCode}_${selectedSubj}`;
           const info = DB.courseInfo[key];
@@ -607,7 +651,6 @@
               ${detailText ? `<div class="cell-info">${detailText}</div>` : ''}
             </td>`;
         } else {
-          // 1학년 공통과목 또는 2/3학년 공통지정 과목
           tr.innerHTML += `<td><div class="cell-subject">${rawCell}</div></td>`;
         }
       }
@@ -630,7 +673,6 @@
     if (inputPwd !== DB.adminPassword) return alert("암호가 일치하지 않습니다.");
     if (!DB.students || DB.students.length === 0) return alert("등록된 학생 데이터가 없습니다.");
 
-    // 학급 목록 생성
     const classes = new Set();
     DB.students.forEach(s => {
       const cInfo = parseStudentClassInfo(s.id);
