@@ -38,7 +38,7 @@
     table.timetable { width: 100%; border-collapse: collapse; margin-top: 15px; text-align: center; background: #fff; border-radius: 8px; overflow: hidden; table-layout: fixed; }
     table.timetable th, table.timetable td { border: 1px solid #e2e8f0; padding: 10px 4px; font-size: 13px; word-break: keep-all; }
     table.timetable th { background: #f1f5f9; color: #475569; font-weight: 600; }
-    .cell-subject { font-weight: bold; color: #0f172a; font-size: 14px; margin: 3px 0; }
+    .cell-subject { font-weight: bold; color: #0f172a; font-size: 14px; margin: 3px 0; white-space: pre-line; }
     .cell-info { font-size: 11px; color: #1e293b; background: #f1f5f9; padding: 3px 6px; border-radius: 4px; display: inline-block; margin-top: 3px; font-weight: 500; }
     .badge-elective { display: inline-block; font-size: 10px; background: #dbeafe; color: #1e40af; padding: 2px 5px; border-radius: 4px; font-weight: bold; }
     
@@ -98,7 +98,7 @@
   <div id="userSection" class="section active">
     <h2>🏫 개인 시간표 조회</h2>
     <div class="search-box">
-      <input type="text" id="searchStudentId" placeholder="학번 (예: 20101)">
+      <input type="text" id="searchStudentId" placeholder="학번 (예: 10101)">
       <input type="text" id="searchName" placeholder="이름 (예: 홍길동)">
       <input type="password" id="searchPassword" placeholder="비밀번호 4자리" style="display:none;">
       <button class="btn" onclick="searchTimetable()">조회하기</button>
@@ -150,7 +150,6 @@
 
     <div class="card">
       <h3>2. 기초자료 업로드 및 데이터 동기화</h3>
-      <button class="btn btn-outline" onclick="downloadTemplateWithInfoSheet()" style="margin-bottom: 12px;">📥 신규 양식 파일 다운로드 (3개 탭 포함)</button>
       <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
         📁 이곳을 클릭하여 작성한 엑셀 파일(.xlsx)을 변환하세요.
         <input type="file" id="fileInput" accept=".xlsx" style="display:none" onchange="handleFileUpload(this.files[0])">
@@ -199,8 +198,8 @@
     <div class="form-group">
       <label>인쇄 범위를 선택하세요:</label>
       <select id="printTargetType" onchange="togglePrintTargetInputs()">
-        <option value="class">특정 학급 지정 (예: 2학년 1반)</option>
-        <option value="range">학번 범위 지정 (예: 20101 ~ 20115)</option>
+        <option value="class">특정 학급 지정 (예: 1학년 1반, 2학년 3반)</option>
+        <option value="range">학번 범위 지정 (예: 10101 ~ 10130)</option>
         <option value="all">전체 학생 일괄 인쇄</option>
       </select>
     </div>
@@ -213,9 +212,9 @@
     <div class="form-group" id="targetRangeGroup" style="display:none;">
       <label>학번 범위 지정:</label>
       <div style="display:flex; gap:8px; align-items:center;">
-        <input type="text" id="rangeStart" placeholder="시작 학번 (예: 20101)">
+        <input type="text" id="rangeStart" placeholder="시작 학번 (예: 10101)">
         <span>~</span>
-        <input type="text" id="rangeEnd" placeholder="종료 학번 (예: 20130)">
+        <input type="text" id="rangeEnd" placeholder="종료 학번 (예: 10130)">
       </div>
     </div>
 
@@ -226,7 +225,6 @@
   </div>
 </div>
 
-<!-- 실제 인쇄 시 렌더링될 숨겨진 영역 -->
 <div id="printArea"></div>
 
 <script>
@@ -345,33 +343,28 @@
     }
   }
 
-  function downloadTemplateWithInfoSheet() {
-    const wb = XLSX.utils.book_new();
-    const ws1 = [
-      ["연번", "학번", "이름", "A", "B", "C", "D", "E"],
-      [1, 20101, "홍길동", "동아시아 역사기행", "도시의 미래탐구", "음악과 미디어", "법과사회", "일본어회화"],
-      [2, 20102, "이순신", "세계시민과 지리", "생활속의 화학", "음악과 미디어", "법과사회", "중국어회화"]
-    ];
-    const ws2 = [
-      ["선택군", "과목명", "담당교사", "강의실"],
-      ["A", "동아시아 역사기행", "김철수", "2-1"],
-      ["A", "세계시민과 지리", "이영희", "2-2"],
-      ["E", "일본어회화", "조혜림", "1반"],
-      ["E", "중국어회화", "왕웨이", "2반"]
-    ];
-    const ws3 = [
-      ["전체시간표"],
-      ["학급", "월", "", "", "", "", "", "화", "", "", "", "", "", "", "수", "", "", "", "", "", "목", "", "", "", "", "", "", "금"],
-      ["", 1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6, 7, 1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6, 7, 1, 2, 3, 4, 5, 6],
-      [1, "A", "국어", "B", "C", "영어", "수학", "B", "C", "D", "E", "A", "", "", "C", "D", "E", "A", "B", "", "D", "E", "A", "B", "C", "", "", "E", "A", "B", "C", "D", ""]
-    ];
+  // 학번 파싱 및 학급 코드 생성 함수 (예: 10101 -> {grade:1, classCode:"1-1", className:"1학년 1반"})
+  function parseStudentClassInfo(idStr) {
+    let sid = String(idStr).trim();
+    let grade = 1, classNum = 1;
 
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ws1), "학생 선택과목 현황");
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ws2), "선택과목 정보");
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ws3), "전체시간표");
-    XLSX.writeFile(wb, "개인_시간표_기초자료[양식].xlsx");
+    if (sid.length === 5) {
+      grade = parseInt(sid.substring(0, 1), 10);
+      classNum = parseInt(sid.substring(1, 3), 10);
+    } else if (sid.length === 4) {
+      grade = parseInt(sid.substring(0, 1), 10);
+      classNum = parseInt(sid.substring(1, 2), 10);
+    }
+
+    return {
+      grade: grade,
+      classNum: classNum,
+      classCode: `${grade}-${classNum}`,
+      className: `${grade}학년 ${classNum}반`
+    };
   }
 
+  // 엑셀 업로드 및 파싱
   function handleFileUpload(file) {
     if (!file) return;
     const reader = new FileReader();
@@ -380,69 +373,91 @@
         const data = new Uint8Array(e.target.result);
         const wb = XLSX.read(data, {type: 'array'});
         
-        const sSheet = wb.Sheets['학생 선택과목 현황'] || wb.Sheets[wb.SheetNames[0]];
-        const sRows = XLSX.utils.sheet_to_json(sSheet, {header: 1});
         DB.students = [];
-        
-        let headIdx = 0;
-        for (let i = 0; i < Math.min(10, sRows.length); i++) {
-          if (sRows[i] && sRows[i].some(c => String(c).includes('학번'))) {
-            headIdx = i;
-            break;
-          }
-        }
-
-        const headers = sRows[headIdx] ? sRows[headIdx].map(c => String(c).trim()) : [];
-        const idCol = headers.findIndex(h => h.includes('학번')) !== -1 ? headers.findIndex(h => h.includes('학번')) : 1;
-        const nameCol = headers.findIndex(h => h.includes('이름')) !== -1 ? headers.findIndex(h => h.includes('이름')) : 2;
-
-        for (let i = headIdx + 1; i < sRows.length; i++) {
-          const row = sRows[i];
-          if (row && row[idCol] !== undefined && row[nameCol] !== undefined) {
-            const sid = String(row[idCol]).trim();
-            const sname = String(row[nameCol]).trim();
-            if (sid && sname && sid !== "학번") {
-              let choices = {};
-              for (let col = 0; col < row.length; col++) {
-                const groupName = headers[col];
-                if (groupName && groupName.length === 1 && groupName >= 'A' && groupName <= 'Z') {
-                  choices[groupName] = String(row[col] || '').trim();
-                }
-              }
-              DB.students.push({
-                id: sid,
-                name: sname,
-                choices: choices,
-                pwd: Math.floor(1000 + Math.random() * 9000).toString()
-              });
-            }
-          }
-        }
-
         DB.courseInfo = {};
-        const infoSheet = wb.Sheets['선택과목 정보'];
-        if (infoSheet) {
-          const infoRows = XLSX.utils.sheet_to_json(infoSheet, {header: 1});
-          for (let i = 1; i < infoRows.length; i++) {
-            const row = infoRows[i];
-            if (row && row[0] && row[1]) {
-              const group = String(row[0]).trim().toUpperCase();
-              const subject = String(row[1]).trim();
-              const teacher = row[2] ? String(row[2]).trim() : '';
-              const room = row[3] ? String(row[3]).trim() : '';
-              DB.courseInfo[`${group}_${subject}`] = { teacher, room };
-            }
-          }
-        }
-
-        const ttSheet = wb.Sheets['전체시간표'] || wb.Sheets[wb.SheetNames[wb.SheetNames.length - 1]];
-        const ttRows = XLSX.utils.sheet_to_json(ttSheet, {header: 1});
         DB.timetableMap = {};
 
-        let dataStartRow = 3;
+        // 1. [1학년 명렬표] 및 [2/3학년 학생 선택과목 현황] 파싱
+        wb.SheetNames.forEach(sheetName => {
+          if (sheetName.includes('명렬표') || sheetName.includes('선택과목 현황')) {
+            const sheet = wb.Sheets[sheetName];
+            const rows = XLSX.utils.sheet_to_json(sheet, {header: 1});
+            
+            let headIdx = 0;
+            for (let i = 0; i < Math.min(10, rows.length); i++) {
+              if (rows[i] && rows[i].some(c => String(c).includes('학번'))) {
+                headIdx = i;
+                break;
+              }
+            }
+
+            const headers = rows[headIdx] ? rows[headIdx].map(c => String(c).trim()) : [];
+            const idCol = headers.findIndex(h => h.includes('학번')) !== -1 ? headers.findIndex(h => h.includes('학번')) : 1;
+            const nameCol = headers.findIndex(h => h.includes('이름')) !== -1 ? headers.findIndex(h => h.includes('이름')) : 2;
+
+            for (let i = headIdx + 1; i < rows.length; i++) {
+              const row = rows[i];
+              if (row && row[idCol] !== undefined && row[nameCol] !== undefined) {
+                const sid = String(row[idCol]).trim();
+                const sname = String(row[nameCol]).trim();
+                if (sid && sname && sid !== "학번") {
+                  let choices = {};
+                  for (let col = 0; col < row.length; col++) {
+                    const groupName = headers[col];
+                    if (groupName && groupName.length === 1 && groupName >= 'A' && groupName <= 'Z') {
+                      choices[groupName] = String(row[col] || '').trim();
+                    }
+                  }
+                  
+                  // 기존 동일 학번 중복 제거 후 추가
+                  const existingIdx = DB.students.findIndex(s => s.id === sid);
+                  const studentData = {
+                    id: sid,
+                    name: sname,
+                    choices: choices,
+                    pwd: existingIdx !== -1 ? DB.students[existingIdx].pwd : Math.floor(1000 + Math.random() * 9000).toString()
+                  };
+
+                  if (existingIdx !== -1) DB.students[existingIdx] = studentData;
+                  else DB.students.push(studentData);
+                }
+              }
+            }
+          }
+        });
+
+        // 2. [2학년/3학년 선택과목 정보] 파싱
+        wb.SheetNames.forEach(sheetName => {
+          if (sheetName.includes('선택과목 정보')) {
+            const grade = sheetName.includes('2학년') ? 2 : (sheetName.includes('3학년') ? 3 : 0);
+            const sheet = wb.Sheets[sheetName];
+            const rows = XLSX.utils.sheet_to_json(sheet, {header: 1});
+
+            for (let i = 1; i < rows.length; i++) {
+              const row = rows[i];
+              if (row && row[0] && row[1]) {
+                const group = String(row[0]).trim().toUpperCase();
+                const subject = String(row[1]).trim();
+                const teacher = row[2] ? String(row[2]).trim() : '';
+                const room = row[3] ? String(row[3]).trim() : '';
+                
+                // 키: "2_A_법과사회" 또는 "3_A_법과사회"
+                if (grade > 0) {
+                  DB.courseInfo[`${grade}_${group}_${subject}`] = { teacher, room };
+                }
+              }
+            }
+          }
+        });
+
+        // 3. [전체시간표] 파싱 ('1-1', '2-1', '3-1' 등)
+        const ttSheet = wb.Sheets['전체시간표'] || wb.Sheets[wb.SheetNames[wb.SheetNames.length - 1]];
+        const ttRows = XLSX.utils.sheet_to_json(ttSheet, {header: 1});
+
+        let dataStartRow = 2;
         for (let r = 0; r < ttRows.length; r++) {
           const firstVal = ttRows[r] ? String(ttRows[r][0]).trim() : '';
-          if (firstVal && !isNaN(parseInt(firstVal, 10))) {
+          if (firstVal && (firstVal.includes('-') || !isNaN(parseInt(firstVal, 10)))) {
             dataStartRow = r;
             break;
           }
@@ -451,16 +466,17 @@
         for (let r = dataStartRow; r < ttRows.length; r++) {
           const row = ttRows[r];
           if (row && row[0] !== undefined) {
-            const rawNum = parseInt(String(row[0]).replace(/[^0-9]/g, ''), 10);
-            if (!isNaN(rawNum) && rawNum > 0) {
-              let classNum = rawNum >= 100 ? rawNum % 100 : rawNum;
-              DB.timetableMap[classNum] = row.slice(1);
+            let classRaw = String(row[0]).trim(); // 예: "1-1", "2-1"
+            if (classRaw && classRaw !== "학급") {
+              // "1-1반" -> "1-1" 정규화
+              classRaw = classRaw.replace('반', '').trim();
+              DB.timetableMap[classRaw] = row.slice(1);
             }
           }
         }
 
         document.getElementById('jsonDownloadBox').style.display = 'block';
-        alert(`총 ${DB.students.length}명의 학생 데이터 변환이 완료되었습니다. 아래 [data.json 다운로드] 버튼을 누르세요.`);
+        alert(`총 ${DB.students.length}명의 학생 데이터(1~3학년) 변환이 완료되었습니다. 아래 [data.json 다운로드] 버튼을 누르세요.`);
       } catch (err) {
         alert("엑셀 파일 파싱 오류: " + err);
       }
@@ -533,15 +549,12 @@
   }
 
   function renderTimetableGrid(student, tbodyElem) {
-    let classNum = 1;
-    if (student.id.length === 5) classNum = parseInt(student.id.substring(1, 3), 10);
-    else if (student.id.length === 4) classNum = parseInt(student.id.substring(1, 2), 10);
-
-    const classSchedule = DB.timetableMap[classNum];
+    const classInfo = parseStudentClassInfo(student.id);
+    const classSchedule = DB.timetableMap[classInfo.classCode];
     tbodyElem.innerHTML = '';
 
     if (!classSchedule) {
-      tbodyElem.innerHTML = `<tr><td colspan="6">${classNum}반의 전체시간표 정보를 찾을 수 없습니다.</td></tr>`;
+      tbodyElem.innerHTML = `<tr><td colspan="6">${classInfo.className}의 전체시간표 정보를 찾을 수 없습니다.</td></tr>`;
       return;
     }
 
@@ -573,9 +586,10 @@
         const matchGroup = rawCell.match(/^([A-Z])/i);
         const groupCode = matchGroup ? matchGroup[1].toUpperCase() : null;
 
-        if (groupCode && student.choices[groupCode]) {
+        if (groupCode && student.choices && student.choices[groupCode]) {
+          // 2, 3학년 이동 선택 과목
           const selectedSubj = student.choices[groupCode];
-          const key = `${groupCode}_${selectedSubj}`;
+          const key = `${classInfo.grade}_${groupCode}_${selectedSubj}`;
           const info = DB.courseInfo[key];
 
           let detailText = '';
@@ -593,6 +607,7 @@
               ${detailText ? `<div class="cell-info">${detailText}</div>` : ''}
             </td>`;
         } else {
+          // 1학년 공통과목 또는 2/3학년 공통지정 과목
           tr.innerHTML += `<td><div class="cell-subject">${rawCell}</div></td>`;
         }
       }
@@ -613,16 +628,13 @@
     const inputPwd = prompt("교원/관리자 암호를 입력하세요:");
     if (inputPwd === null) return;
     if (inputPwd !== DB.adminPassword) return alert("암호가 일치하지 않습니다.");
-
     if (!DB.students || DB.students.length === 0) return alert("등록된 학생 데이터가 없습니다.");
 
     // 학급 목록 생성
     const classes = new Set();
     DB.students.forEach(s => {
-      let cName = "";
-      if (s.id.length === 5) cName = `${s.id.substring(0, 1)}학년 ${parseInt(s.id.substring(1, 3), 10)}반`;
-      else if (s.id.length === 4) cName = `${s.id.substring(0, 1)}학년 ${parseInt(s.id.substring(1, 2), 10)}반`;
-      if (cName) classes.add(cName);
+      const cInfo = parseStudentClassInfo(s.id);
+      classes.add(cInfo.className);
     });
 
     const classSelect = document.getElementById('targetClassSelect');
@@ -652,10 +664,8 @@
     if (type === 'class') {
       const selectedClass = document.getElementById('targetClassSelect').value;
       targetStudents = DB.students.filter(s => {
-        let cName = "";
-        if (s.id.length === 5) cName = `${s.id.substring(0, 1)}학년 ${parseInt(s.id.substring(1, 3), 10)}반`;
-        else if (s.id.length === 4) cName = `${s.id.substring(0, 1)}학년 ${parseInt(s.id.substring(1, 2), 10)}반`;
-        return cName === selectedClass;
+        const cInfo = parseStudentClassInfo(s.id);
+        return cInfo.className === selectedClass;
       });
     } else if (type === 'range') {
       const start = document.getElementById('rangeStart').value.trim();
@@ -668,7 +678,6 @@
 
     if (targetStudents.length === 0) return alert("선택한 조건에 해당하는 학생이 없습니다.");
 
-    // 학번순 정렬
     targetStudents.sort((a, b) => a.id.localeCompare(b.id));
 
     const printArea = document.getElementById('printArea');
