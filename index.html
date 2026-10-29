@@ -175,7 +175,19 @@
     </div>
 
     <div class="card">
-      <h3>4. 보안 및 비밀번호 설정</h3>
+      <h3>4. 교사명 마스킹 설정</h3>
+      <p style="font-size: 13px; color: #64748b; margin-top: -5px;">학생 조회 시 교사 이름 표기 방식을 선택하세요.</p>
+      <div class="form-group" style="max-width: 300px; margin-bottom: 0;">
+        <select id="teacherMaskingType" onchange="updateMaskingSetting()">
+          <option value="none">전체 공개 (예: 김철수)</option>
+          <option value="middle">가운데 글자 마스킹 (예: 김*수)</option>
+          <option value="all">전체 마스킹 (예: ***)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>5. 보안 및 비밀번호 설정</h3>
       <label style="font-size: 15px; cursor: pointer; font-weight: 600;">
         <input type="checkbox" id="usePasswordCheck" onchange="togglePasswordSetting()" style="width: 18px; height: 18px;"> 학생별 비밀번호(4자리) 사용하기
       </label>
@@ -234,6 +246,7 @@
     courseInfo: {},
     timetableMap: {},
     dayPeriods: [6, 7, 6, 7, 6],
+    maskingType: "none", // none, middle, all
     usePassword: false,
     adminPassword: "1234"
   };
@@ -252,8 +265,10 @@
           DB = data;
           if (!DB.adminPassword) DB.adminPassword = "1234";
           if (!DB.dayPeriods) DB.dayPeriods = [6, 7, 6, 7, 6];
+          if (!DB.maskingType) DB.maskingType = "none";
           
           loadPeriodSettingsUI();
+          document.getElementById('teacherMaskingType').value = DB.maskingType;
           document.getElementById('usePasswordCheck').checked = DB.usePassword || false;
           updatePasswordUI();
           showDataStatus(true);
@@ -292,6 +307,33 @@
       parseInt(document.getElementById('p_fri').value, 10) || 6
     ];
     document.getElementById('jsonDownloadBox').style.display = 'block';
+  }
+
+  function updateMaskingSetting() {
+    DB.maskingType = document.getElementById('teacherMaskingType').value;
+    document.getElementById('jsonDownloadBox').style.display = 'block';
+  }
+
+  // 교사명 마스킹 변환 함수
+  function maskTeacherName(nameStr) {
+    if (!nameStr) return '';
+    const name = String(nameStr).trim();
+    if (!name) return '';
+
+    const type = DB.maskingType || 'none';
+    if (type === 'none') return name;
+
+    if (type === 'all') {
+      return '*'.repeat(name.length);
+    }
+
+    if (type === 'middle') {
+      if (name.length <= 1) return '*';
+      if (name.length === 2) return name[0] + '*';
+      return name[0] + '*'.repeat(name.length - 2) + name[name.length - 1];
+    }
+
+    return name;
   }
 
   function accessAdminMode() {
@@ -344,7 +386,6 @@
     }
   }
 
-  // 6개 탭 포함된 신규 양식 파일 생성 및 다운로드
   function downloadTemplateWithInfoSheet() {
     const wb = XLSX.utils.book_new();
     
@@ -531,6 +572,7 @@
 
   function downloadDataJson() {
     updatePeriodSettings();
+    updateMaskingSetting();
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(DB, null, 2));
     const dlAnchorElem = document.createElement('a');
     dlAnchorElem.setAttribute("href", dataStr);
@@ -639,7 +681,7 @@
           let detailText = '';
           if (info) {
             const parts = [];
-            if (info.teacher) parts.push(info.teacher);
+            if (info.teacher) parts.push(maskTeacherName(info.teacher));
             if (info.room) parts.push(info.room);
             if (parts.length > 0) detailText = parts.join(' - ');
           }
@@ -651,7 +693,16 @@
               ${detailText ? `<div class="cell-info">${detailText}</div>` : ''}
             </td>`;
         } else {
-          tr.innerHTML += `<td><div class="cell-subject">${rawCell}</div></td>`;
+          // 1학년 등 '과목명\n담당교사' 형태로 된 셀 마스킹 처리
+          let formattedCell = rawCell;
+          if (rawCell.includes('\n')) {
+            const lines = rawCell.split('\n');
+            const subject = lines[0].trim();
+            const teacher = lines[1] ? lines[1].trim() : '';
+            formattedCell = `${subject}\n${maskTeacherName(teacher)}`;
+          }
+
+          tr.innerHTML += `<td><div class="cell-subject">${formattedCell}</div></td>`;
         }
       }
       tbodyElem.appendChild(tr);
