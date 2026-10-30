@@ -12948,5 +12948,12 @@
     7,
     6
   ],
-  "maskingType": "all"
+  "maskingType": "all",
+  "visibleDays": [
+    false,
+    false,
+    true,
+    false,
+    false
+  ]
 }
