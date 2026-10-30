@@ -49,10 +49,11 @@
     .share-link-box { display: flex; gap: 8px; margin-top: 10px; }
     .share-link-box input { flex: 1; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; }
     
-    .period-setting-grid { display: flex; gap: 10px; margin-top: 10px; }
-    .period-setting-item { flex: 1; text-align: center; }
-    .period-setting-item label { display: block; font-size: 13px; font-weight: bold; margin-bottom: 4px; color: #475569; }
-    .period-setting-item input { width: 100%; text-align: center; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-weight: bold; }
+    .period-setting-grid { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+    .period-setting-item { flex: 1; min-width: 120px; text-align: center; background: #fff; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0; }
+    .period-setting-item label { display: block; font-size: 14px; font-weight: bold; margin-bottom: 6px; color: #0f172a; }
+    .period-setting-item input[type="number"] { width: 100%; text-align: center; padding: 6px; border: 1px solid #cbd5e1; border-radius: 6px; font-weight: bold; margin-top: 4px; }
+    .period-setting-item .check-wrap { display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 12px; color: #64748b; font-weight: 600; }
 
     .footer-links { display: flex; justify-content: space-between; align-items: center; margin-top: 25px; padding-top: 15px; border-top: 1px solid #e2e8f0; }
     .footer-links a { color: #64748b; text-decoration: none; font-size: 13px; }
@@ -108,7 +109,7 @@
 
     <table class="timetable" id="timetableGrid">
       <thead>
-        <tr>
+        <tr id="timetableHeaderRow">
           <th style="width: 11%;">교시</th>
           <th>월</th>
           <th>화</th>
@@ -118,7 +119,7 @@
         </tr>
       </thead>
       <tbody>
-        <tr><td colspan="6">학번과 이름을 입력하고 조회 버튼을 눌러주세요.</td></tr>
+        <tr><td id="initialGridCell" colspan="6">학번과 이름을 입력하고 조회 버튼을 눌러주세요.</td></tr>
       </tbody>
     </table>
 
@@ -137,14 +138,34 @@
     <h2>⚙️ 관리자 설정</h2>
     
     <div class="card">
-      <h3>1. 요일별 교시 수 설정</h3>
-      <p style="font-size: 13px; color: #64748b; margin-top: -5px;">학교 시간표에 맞게 요일별 마지막 교시 수를 지정해주세요. (기본값: 월6, 화7, 수6, 목7, 금6)</p>
+      <h3>1. 요일별 교시 수 및 노출 설정</h3>
+      <p style="font-size: 13px; color: #64748b; margin-top: -5px;">표시할 요일 체크박스를 선택하고, 요일별 마지막 교시 수를 입력하세요.</p>
       <div class="period-setting-grid">
-        <div class="period-setting-item"><label>월요일</label><input type="number" id="p_mon" value="6" min="1" max="10" onchange="updatePeriodSettings()"></div>
-        <div class="period-setting-item"><label>화요일</label><input type="number" id="p_tue" value="7" min="1" max="10" onchange="updatePeriodSettings()"></div>
-        <div class="period-setting-item"><label>수요일</label><input type="number" id="p_wed" value="6" min="1" max="10" onchange="updatePeriodSettings()"></div>
-        <div class="period-setting-item"><label>목요일</label><input type="number" id="p_thu" value="7" min="1" max="10" onchange="updatePeriodSettings()"></div>
-        <div class="period-setting-item"><label>금요일</label><input type="number" id="p_fri" value="6" min="1" max="10" onchange="updatePeriodSettings()"></div>
+        <div class="period-setting-item">
+          <label>월요일</label>
+          <div class="check-wrap"><input type="checkbox" id="show_mon" checked onchange="updatePeriodSettings()"> 노출</div>
+          <input type="number" id="p_mon" value="6" min="1" max="10" onchange="updatePeriodSettings()">
+        </div>
+        <div class="period-setting-item">
+          <label>화요일</label>
+          <div class="check-wrap"><input type="checkbox" id="show_tue" checked onchange="updatePeriodSettings()"> 노출</div>
+          <input type="number" id="p_tue" value="7" min="1" max="10" onchange="updatePeriodSettings()">
+        </div>
+        <div class="period-setting-item">
+          <label>수요일</label>
+          <div class="check-wrap"><input type="checkbox" id="show_wed" checked onchange="updatePeriodSettings()"> 노출</div>
+          <input type="number" id="p_wed" value="6" min="1" max="10" onchange="updatePeriodSettings()">
+        </div>
+        <div class="period-setting-item">
+          <label>목요일</label>
+          <div class="check-wrap"><input type="checkbox" id="show_thu" checked onchange="updatePeriodSettings()"> 노출</div>
+          <input type="number" id="p_thu" value="7" min="1" max="10" onchange="updatePeriodSettings()">
+        </div>
+        <div class="period-setting-item">
+          <label>금요일</label>
+          <div class="check-wrap"><input type="checkbox" id="show_fri" checked onchange="updatePeriodSettings()"> 노출</div>
+          <input type="number" id="p_fri" value="6" min="1" max="10" onchange="updatePeriodSettings()">
+        </div>
       </div>
     </div>
 
@@ -241,12 +262,15 @@
 <div id="printArea"></div>
 
 <script>
+  const DAY_NAMES = ["월", "화", "수", "목", "금"];
+
   let DB = {
     students: [],
     courseInfo: {},
     timetableMap: {},
     dayPeriods: [6, 7, 6, 7, 6],
-    maskingType: "none", // none, middle, all
+    visibleDays: [true, true, true, true, true], // [월, 화, 수, 목, 금] 노출 여부
+    maskingType: "none",
     usePassword: false,
     adminPassword: "1234"
   };
@@ -265,6 +289,7 @@
           DB = data;
           if (!DB.adminPassword) DB.adminPassword = "1234";
           if (!DB.dayPeriods) DB.dayPeriods = [6, 7, 6, 7, 6];
+          if (!DB.visibleDays) DB.visibleDays = [true, true, true, true, true];
           if (!DB.maskingType) DB.maskingType = "none";
           
           loadPeriodSettingsUI();
@@ -275,10 +300,12 @@
         } else {
           showDataStatus(false);
         }
+        updateGridHeaderUI();
       })
       .catch(err => {
         console.log("data.json 읽기 실패:", err);
         showDataStatus(false);
+        updateGridHeaderUI();
       });
 
     const baseUrl = window.location.origin + window.location.pathname;
@@ -296,6 +323,13 @@
       document.getElementById('p_thu').value = DB.dayPeriods[3];
       document.getElementById('p_fri').value = DB.dayPeriods[4];
     }
+    if (DB.visibleDays && DB.visibleDays.length === 5) {
+      document.getElementById('show_mon').checked = DB.visibleDays[0];
+      document.getElementById('show_tue').checked = DB.visibleDays[1];
+      document.getElementById('show_wed').checked = DB.visibleDays[2];
+      document.getElementById('show_thu').checked = DB.visibleDays[3];
+      document.getElementById('show_fri').checked = DB.visibleDays[4];
+    }
   }
 
   function updatePeriodSettings() {
@@ -306,7 +340,39 @@
       parseInt(document.getElementById('p_thu').value, 10) || 7,
       parseInt(document.getElementById('p_fri').value, 10) || 6
     ];
+    DB.visibleDays = [
+      document.getElementById('show_mon').checked,
+      document.getElementById('show_tue').checked,
+      document.getElementById('show_wed').checked,
+      document.getElementById('show_thu').checked,
+      document.getElementById('show_fri').checked
+    ];
+    updateGridHeaderUI();
     document.getElementById('jsonDownloadBox').style.display = 'block';
+  }
+
+  function updateGridHeaderUI() {
+    const headerRow = document.getElementById('timetableHeaderRow');
+    if (!headerRow) return;
+
+    let visibleCount = 0;
+    let thHTML = `<th style="width: 11%;">교시</th>`;
+
+    for (let d = 0; d < 5; d++) {
+      if (DB.visibleDays[d]) {
+        thHTML += `<th>${DAY_NAMES[d]}</th>`;
+        visibleCount++;
+      }
+    }
+
+    if (visibleCount === 0) {
+      thHTML += `<th>노출 설정된 요일이 없습니다</th>`;
+      visibleCount = 1;
+    }
+
+    headerRow.innerHTML = thHTML;
+    const initialCell = document.getElementById('initialGridCell');
+    if (initialCell) initialCell.setAttribute('colspan', visibleCount + 1);
   }
 
   function updateMaskingSetting() {
@@ -314,7 +380,6 @@
     document.getElementById('jsonDownloadBox').style.display = 'block';
   }
 
-  // 교사명 마스킹 변환 함수
   function maskTeacherName(nameStr) {
     if (!nameStr) return '';
     const name = String(nameStr).trim();
@@ -322,10 +387,7 @@
 
     const type = DB.maskingType || 'none';
     if (type === 'none') return name;
-
-    if (type === 'all') {
-      return '*'.repeat(name.length);
-    }
+    if (type === 'all') return '*'.repeat(name.length);
 
     if (type === 'middle') {
       if (name.length <= 1) return '*';
@@ -388,12 +450,7 @@
 
   function downloadTemplateWithInfoSheet() {
     const wb = XLSX.utils.book_new();
-    
-    const ws1 = [
-      ["일련번호", "학번", "이름"],
-      [1, 10101, "홍길동"],
-      [2, 10102, "이순신"]
-    ];
+    const ws1 = [["일련번호", "학번", "이름"], [1, 10101, "홍길동"], [2, 10102, "이순신"]];
     const ws2 = [
       ["연번", "학번", "이름", "A", "B", "C", "D", "E"],
       [1, 20101, "강감찬", "동아시아 역사기행", "도시의 미래탐구", "음악과 미디어", "법과사회", "일본어회화"],
@@ -466,7 +523,6 @@
         DB.courseInfo = {};
         DB.timetableMap = {};
 
-        // 1. [1학년 명렬표] 및 [2/3학년 학생 선택과목 현황] 파싱
         wb.SheetNames.forEach(sheetName => {
           if (sheetName.includes('명렬표') || sheetName.includes('선택과목 현황')) {
             const sheet = wb.Sheets[sheetName];
@@ -514,7 +570,6 @@
           }
         });
 
-        // 2. [2학년/3학년 선택과목 정보] 파싱
         wb.SheetNames.forEach(sheetName => {
           if (sheetName.includes('선택과목 정보')) {
             const grade = sheetName.includes('2학년') ? 2 : (sheetName.includes('3학년') ? 3 : 0);
@@ -537,7 +592,6 @@
           }
         });
 
-        // 3. [전체시간표] 파싱 ('1-1', '2-1', '3-1' 등)
         const ttSheet = wb.Sheets['전체시간표'] || wb.Sheets[wb.SheetNames[wb.SheetNames.length - 1]];
         const ttRows = XLSX.utils.sheet_to_json(ttSheet, {header: 1});
 
@@ -640,19 +694,38 @@
     const classSchedule = DB.timetableMap[classInfo.classCode];
     tbodyElem.innerHTML = '';
 
+    const dayPeriods = DB.dayPeriods || [6, 7, 6, 7, 6];
+    const visibleDays = DB.visibleDays || [true, true, true, true, true];
+    
+    // 노출 설정된 요일 수 계산
+    const visibleColCount = visibleDays.filter(Boolean).length;
+
     if (!classSchedule) {
-      tbodyElem.innerHTML = `<tr><td colspan="6">${classInfo.className}의 전체시간표 정보를 찾을 수 없습니다.</td></tr>`;
+      tbodyElem.innerHTML = `<tr><td colspan="${visibleColCount + 1}">${classInfo.className}의 전체시간표 정보를 찾을 수 없습니다.</td></tr>`;
       return;
     }
 
-    const dayPeriods = DB.dayPeriods || [6, 7, 6, 7, 6];
-    const maxPeriod = Math.max(...dayPeriods);
+    if (visibleColCount === 0) {
+      tbodyElem.innerHTML = `<tr><td colspan="2">노출로 설정된 요일이 없습니다. 관리자 설정을 확인해주세요.</td></tr>`;
+      return;
+    }
+
+    // 노출 요일 중 최대 교시 수 계산
+    let maxPeriod = 0;
+    for (let d = 0; d < 5; d++) {
+      if (visibleDays[d] && dayPeriods[d] > maxPeriod) {
+        maxPeriod = dayPeriods[d];
+      }
+    }
 
     for (let p = 1; p <= maxPeriod; p++) {
       let tr = document.createElement('tr');
       tr.innerHTML = `<td><b>${p}교시</b></td>`;
 
       for (let d = 0; d < 5; d++) {
+        // 숨김 처리된 요일은 스킵
+        if (!visibleDays[d]) continue;
+
         const periodCount = dayPeriods[d];
         if (p > periodCount) {
           tr.innerHTML += `<td style="background-color: #f8fafc; color: #cbd5e1;">-</td>`;
@@ -693,7 +766,6 @@
               ${detailText ? `<div class="cell-info">${detailText}</div>` : ''}
             </td>`;
         } else {
-          // 1학년 등 '과목명\n담당교사' 형태로 된 셀 마스킹 처리
           let formattedCell = rawCell;
           if (rawCell.includes('\n')) {
             const lines = rawCell.split('\n');
@@ -788,19 +860,18 @@
 
   /* 학생 1명분의 인쇄용 HTML 생성 함수 */
   function generateStudentPrintHTML(student) {
+    const visibleDays = DB.visibleDays || [true, true, true, true, true];
+    let thHTML = `<th style="width: 11%;">교시</th>`;
+    for (let d = 0; d < 5; d++) {
+      if (visibleDays[d]) thHTML += `<th>${DAY_NAMES[d]}</th>`;
+    }
+
     const tempDiv = document.createElement('div');
     const table = document.createElement('table');
     table.className = 'timetable';
     table.innerHTML = `
       <thead>
-        <tr>
-          <th style="width: 11%;">교시</th>
-          <th>월</th>
-          <th>화</th>
-          <th>수</th>
-          <th>목</th>
-          <th>금</th>
-        </tr>
+        <tr>${thHTML}</tr>
       </thead>
       <tbody></tbody>`;
     
