@@ -12950,10 +12950,10 @@
   ],
   "maskingType": "all",
   "visibleDays": [
-    false,
-    false,
     true,
-    false,
-    false
+    true,
+    true,
+    true,
+    true
   ]
 }
